@@ -8,6 +8,8 @@ import RegisterPage from '@/pages/RegisterPage';
 import BuyerDashboard from '@/pages/BuyerDashboard';
 import SellerDashboard from '@/pages/SellerDashboard';
 import VendorDashboard from '@/pages/VendorDashboard';
+import TransactionCenter from '@/pages/TransactionCenter';
+import ContractInfoCollector from '@/pages/ContractInfoCollector';
 
 // Protected Route Component
 import ProtectedRoute from '@/components/shared/ProtectedRoute';
@@ -48,6 +50,26 @@ function App() {
             element={
               <ProtectedRoute requiredRole="vendor">
                 <VendorDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Transaction Center - accessible by all authenticated users */}
+          <Route
+            path="/transaction/:transactionId"
+            element={
+              <ProtectedRoute>
+                <TransactionCenter />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Contract Info Collector */}
+          <Route
+            path="/contract-info/:transactionId"
+            element={
+              <ProtectedRoute>
+                <ContractInfoCollector />
               </ProtectedRoute>
             }
           />
