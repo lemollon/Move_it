@@ -262,33 +262,13 @@ export default function TransactionCenter() {
     }
   ];
 
-  // Documents
-  const documents = [
-    { id: 1, name: 'Purchase Agreement', type: 'contract', uploadedBy: 'System', date: '2024-01-10', status: 'signed' },
-    { id: 2, name: 'Earnest Money Receipt', type: 'receipt', uploadedBy: 'Title Company', date: '2024-01-12', status: 'completed' },
-    { id: 3, name: 'Home Inspection Report', type: 'report', uploadedBy: 'Inspector', date: '2024-01-15', status: 'completed' },
-    { id: 4, name: 'Repair Amendment', type: 'amendment', uploadedBy: 'System', date: '2024-01-16', status: 'signed' },
-    { id: 5, name: 'Title Commitment', type: 'title', uploadedBy: 'Title Company', date: '2024-01-20', status: 'pending_review' },
-    { id: 6, name: 'Seller\'s Disclosure', type: 'disclosure', uploadedBy: 'Seller', date: '2024-01-10', status: 'completed' },
-    { id: 7, name: 'HOA Documents', type: 'hoa', uploadedBy: 'HOA', date: '2024-01-18', status: 'completed' }
-  ];
-
-  // Vendors
+  // Demo vendors (would come from API)
   const vendors = [
     { id: 1, name: 'Premier Title Services', type: 'Title Company', status: 'active', contact: '(214) 555-8888', assignedDate: '2024-01-12' },
     { id: 2, name: 'Texas Home Inspectors', type: 'Inspector', status: 'completed', contact: '(972) 555-9999', assignedDate: '2024-01-12' },
     { id: 3, name: 'Smith & Associates', type: 'Attorney', status: 'active', contact: '(469) 555-7777', assignedDate: '2024-01-10' },
     { id: 4, name: 'Dallas Appraisal Group', type: 'Appraiser', status: 'active', contact: '(214) 555-6666', assignedDate: '2024-01-18' }
   ];
-
-  // Messages
-  const [messages] = useState([
-    { id: 1, sender: 'Mary Johnson', role: 'Seller', message: 'I\'ve signed the repair amendment. Please confirm receipt.', time: '2024-01-16 2:30 PM', isOwn: false },
-    { id: 2, sender: 'You', role: 'Buyer', message: 'Received! Thank you for agreeing to the repairs.', time: '2024-01-16 3:15 PM', isOwn: true },
-    { id: 3, sender: 'Premier Title', role: 'Vendor', message: 'Title commitment has been uploaded. Please review at your earliest convenience.', time: '2024-01-20 10:00 AM', isOwn: false },
-    { id: 4, sender: 'You', role: 'Buyer', message: 'Will review today. Any concerns I should be aware of?', time: '2024-01-20 11:30 AM', isOwn: true },
-    { id: 5, sender: 'Premier Title', role: 'Vendor', message: 'There\'s a minor easement for utilities, very standard. Everything else looks clear.', time: '2024-01-20 12:45 PM', isOwn: false }
-  ]);
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -344,15 +324,6 @@ export default function TransactionCenter() {
         return <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">Sign Required</span>;
       default:
         return <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-medium">{status}</span>;
-    }
-  };
-
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (messageText.trim()) {
-      // In production, this would send to API
-      alert(`Message sent: ${messageText}`);
-      setMessageText('');
     }
   };
 
