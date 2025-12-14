@@ -19,13 +19,14 @@ import transactionRoutes from './routes/transactions.js';
 import vendorRoutes from './routes/vendors.js';
 import documentRoutes from './routes/documents.js';
 import messageRoutes from './routes/messages.js';
+import notificationRoutes from './routes/notifications.js';
 
 // Middleware
 import { errorHandler } from './middleware/errorHandler.js';
 import { logger } from './utils/logger.js';
 
-// Database
-import { sequelize } from './config/database.js';
+// Database and Models
+import { sequelize, syncDatabase } from './models/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -106,6 +107,7 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/vendors', vendorRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Catch-all for undefined routes
 app.use('*', (req, res) => {
