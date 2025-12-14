@@ -1,6 +1,7 @@
 import express from 'express';
 import { protect, authorize } from '../middleware/auth.js';
 import { Offer, Property, User, Transaction, Notification } from '../models/index.js';
+import emailService from '../services/emailService.js';
 
 const router = express.Router();
 
@@ -154,6 +155,14 @@ router.post('/', protect, authorize('buyer', 'admin'), async (req, res) => {
       property_id,
     });
 
+    // Send email notification to seller
+    const seller = await User.findByPk(property.seller_id);
+    if (seller) {
+      emailService.sendOfferReceived(seller, offer, property).catch(err => {
+        console.error('Failed to send offer email:', err);
+      });
+    }
+
     const offerWithRelations = await Offer.findByPk(offer.id, {
       include: [
         {
@@ -286,6 +295,11 @@ router.post('/:id/accept', protect, async (req, res) => {
       message: `Congratulations! Your offer on ${offer.property.address_line1} has been accepted.`,
       property_id: offer.property_id,
       transaction_id: transaction.id,
+    });
+
+    // Send email notification to buyer
+    emailService.sendOfferAccepted(offer.buyer, offer, offer.property).catch(err => {
+      console.error('Failed to send offer accepted email:', err);
     });
 
     res.json({

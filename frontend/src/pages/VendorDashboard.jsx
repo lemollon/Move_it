@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { vendorsAPI, transactionsAPI, messagesAPI, notificationsAPI } from '@/services/api';
 import {
   Home, Briefcase, Users, Star, DollarSign, MessageSquare, Bell, Settings, LogOut,
   MapPin, Phone, Mail, Globe, Clock, CheckCircle, AlertCircle, XCircle, Calendar,
   TrendingUp, Award, Eye, FileText, CreditCard, Crown, Zap, ChevronRight, X,
-  Building2, Shield, Target, BarChart3, ArrowUpRight, ArrowDownRight
+  Building2, Shield, Target, BarChart3, ArrowUpRight, ArrowDownRight, Loader2
 } from 'lucide-react';
 
 export default function VendorDashboard() {
@@ -14,134 +15,126 @@ export default function VendorDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [selectedLead, setSelectedLead] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Demo vendor data
-  const vendorProfile = {
-    businessName: 'Premier Title Services',
-    vendorType: 'Title Company',
-    licenseNumber: 'TX-TIT-12345',
-    serviceAreas: ['Dallas', 'Fort Worth', 'Plano', 'Frisco', 'McKinney'],
-    subscriptionTier: 'standard', // free, standard, premium
-    subscriptionEnd: '2024-02-15',
-    rating: 4.8,
-    reviewCount: 47,
-    completedTransactions: 156
+  // Real data from API
+  const [vendorProfile, setVendorProfile] = useState({
+    businessName: '',
+    vendorType: '',
+    licenseNumber: '',
+    serviceAreas: [],
+    subscriptionTier: 'FREE',
+    subscriptionEnd: null,
+    rating: 0,
+    reviewCount: 0,
+    completedTransactions: 0
+  });
+
+  const [leads, setLeads] = useState([]);
+  const [reviews, setReviews] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+
+  // Fetch vendor data
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const [profileRes, transactionsRes] = await Promise.all([
+        vendorsAPI.getMyProfile().catch(() => ({ data: null })),
+        transactionsAPI.getAll().catch(() => ({ data: [] })),
+      ]);
+
+      if (profileRes.data) {
+        const p = profileRes.data;
+        setVendorProfile({
+          businessName: p.business_name || 'Your Business',
+          vendorType: p.vendor_type || 'Service Provider',
+          licenseNumber: p.license_number || '',
+          serviceAreas: p.service_areas || [],
+          subscriptionTier: p.tier || 'FREE',
+          subscriptionEnd: p.subscription_end,
+          rating: p.rating || 0,
+          reviewCount: p.review_count || 0,
+          completedTransactions: p.completed_transactions || 0
+        });
+      }
+
+      // Transform transactions to leads format
+      const transformedLeads = (transactionsRes.data || []).map(t => ({
+        id: t.id,
+        propertyAddress: t.property?.address_line1 + ', ' + t.property?.city + ', ' + t.property?.state || 'Unknown',
+        buyerName: t.buyer ? `${t.buyer.first_name} ${t.buyer.last_name}` : 'Unknown',
+        sellerName: t.seller ? `${t.seller.first_name} ${t.seller.last_name}` : 'Unknown',
+        transactionValue: t.purchase_price || 0,
+        serviceNeeded: 'Transaction Services',
+        status: t.status === 'closed' ? 'completed' : t.status === 'cancelled' ? 'lost' : 'in_progress',
+        createdAt: t.created_at,
+        urgency: 'medium',
+        closingDate: t.closing_date,
+        notes: ''
+      }));
+      setLeads(transformedLeads);
+      setTransactions(transactionsRes.data || []);
+    } catch (err) {
+      console.error('Error fetching vendor data:', err);
+      setError('Failed to load data');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleUpgradeTier = async (tier) => {
+    try {
+      setSubmitting(true);
+      await vendorsAPI.upgrade(tier);
+      await fetchData();
+      setShowUpgradeModal(false);
+      alert(`Successfully upgraded to ${tier} tier!`);
+    } catch (err) {
+      console.error('Error upgrading tier:', err);
+      alert(err.response?.data?.message || 'Failed to upgrade');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  // Demo stats
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    try {
+      setSubmitting(true);
+      const formData = new FormData(e.target);
+      await vendorsAPI.updateProfile({
+        business_name: formData.get('businessName'),
+        license_number: formData.get('licenseNumber'),
+        service_areas: formData.get('serviceAreas')?.split(',').map(s => s.trim()) || [],
+        bio: formData.get('bio'),
+      });
+      await fetchData();
+      alert('Profile saved successfully!');
+    } catch (err) {
+      console.error('Error saving profile:', err);
+      alert(err.response?.data?.message || 'Failed to save profile');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Demo stats (would come from API aggregation)
   const stats = {
-    activeLeads: 12,
-    leadsThisMonth: 28,
-    conversionRate: 42,
-    revenueThisMonth: 24500,
-    revenueLastMonth: 21800,
+    activeLeads: leads.filter(l => l.status === 'in_progress').length,
+    leadsThisMonth: leads.length,
+    conversionRate: leads.length > 0 ? Math.round((leads.filter(l => l.status === 'completed').length / leads.length) * 100) : 0,
+    revenueThisMonth: leads.filter(l => l.status === 'completed').reduce((acc, l) => acc + (l.transactionValue * 0.01), 0),
+    revenueLastMonth: 0,
     avgResponseTime: '2.4 hrs'
   };
-
-  // Demo leads
-  const [leads] = useState([
-    {
-      id: 1,
-      propertyAddress: '4521 Oak Valley Dr, Dallas, TX',
-      buyerName: 'John Smith',
-      sellerName: 'Mary Johnson',
-      transactionValue: 425000,
-      serviceNeeded: 'Title Search & Insurance',
-      status: 'new',
-      createdAt: '2024-01-12T10:30:00',
-      urgency: 'high',
-      closingDate: '2024-02-15',
-      notes: 'Buyer pre-approved, wants fast close'
-    },
-    {
-      id: 2,
-      propertyAddress: '8932 Maple Creek Ln, Frisco, TX',
-      buyerName: 'Sarah Williams',
-      sellerName: 'Robert Brown',
-      transactionValue: 575000,
-      serviceNeeded: 'Full Title Services',
-      status: 'contacted',
-      createdAt: '2024-01-11T14:20:00',
-      urgency: 'medium',
-      closingDate: '2024-02-28',
-      notes: 'New construction, need survey'
-    },
-    {
-      id: 3,
-      propertyAddress: '7788 Ranch Road, McKinney, TX',
-      buyerName: 'Michael Davis',
-      sellerName: 'Lisa Anderson',
-      transactionValue: 385000,
-      serviceNeeded: 'Title Insurance Only',
-      status: 'quoted',
-      createdAt: '2024-01-10T09:15:00',
-      urgency: 'low',
-      closingDate: '2024-03-15',
-      notes: 'Cash buyer, no financing contingency'
-    },
-    {
-      id: 4,
-      propertyAddress: '3344 Sunset Ridge, Plano, TX',
-      buyerName: 'Jennifer Wilson',
-      sellerName: 'David Martinez',
-      transactionValue: 520000,
-      serviceNeeded: 'Title Search & Escrow',
-      status: 'in_progress',
-      createdAt: '2024-01-08T11:45:00',
-      urgency: 'high',
-      closingDate: '2024-02-10',
-      notes: 'Relocation buyer, employer deadline'
-    },
-    {
-      id: 5,
-      propertyAddress: '1205 Downtown Blvd #1802, Austin, TX',
-      buyerName: 'Chris Taylor',
-      sellerName: 'Amanda White',
-      transactionValue: 650000,
-      serviceNeeded: 'Condo Title Services',
-      status: 'completed',
-      createdAt: '2024-01-05T16:00:00',
-      urgency: 'medium',
-      closingDate: '2024-01-30',
-      notes: 'HOA review completed'
-    }
-  ]);
-
-  // Demo reviews
-  const [reviews] = useState([
-    {
-      id: 1,
-      clientName: 'John & Mary Smith',
-      rating: 5,
-      date: '2024-01-10',
-      comment: 'Excellent service! Premier Title made our closing so smooth. They were responsive and handled everything professionally.',
-      propertyAddress: '2200 Cedar Lane, Richardson, TX'
-    },
-    {
-      id: 2,
-      clientName: 'Sarah Williams',
-      rating: 5,
-      date: '2024-01-05',
-      comment: 'Best title company we\'ve worked with. Fast turnaround and great communication throughout the process.',
-      propertyAddress: '5566 Elm Street, Allen, TX'
-    },
-    {
-      id: 3,
-      clientName: 'Robert Brown',
-      rating: 4,
-      date: '2024-01-02',
-      comment: 'Very professional team. Minor delay but they kept us informed every step of the way.',
-      propertyAddress: '901 Lakeview Terrace, Rockwall, TX'
-    },
-    {
-      id: 4,
-      clientName: 'Lisa Anderson',
-      rating: 5,
-      date: '2023-12-28',
-      comment: 'Would highly recommend! They found an issue with the title early and resolved it quickly, saving us from delays.',
-      propertyAddress: '4455 Brookside Dr, Carrollton, TX'
-    }
-  ]);
 
   // Subscription tiers
   const subscriptionTiers = [
