@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { propertiesAPI, offersAPI, transactionsAPI, messagesAPI } from '@/services/api';
 import {
   Home, Plus, DollarSign, Eye, Heart, Clock, CheckCircle,
   FileText, MessageSquare, Users, LogOut, Camera, MapPin,
   ChevronRight, AlertCircle, TrendingUp, Calendar, Building,
-  Upload, Sparkles, X, Check
+  Upload, Sparkles, X, Check, Loader2
 } from 'lucide-react';
 
 export default function SellerDashboard() {
@@ -14,49 +15,41 @@ export default function SellerDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showCreateListing, setShowCreateListing] = useState(false);
   const [listingStep, setListingStep] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Demo data - would come from API
-  const [listings, setListings] = useState([
-    {
-      id: 1,
-      address: '123 Oak Street',
-      city: 'Austin',
-      state: 'TX',
-      zip: '78701',
-      price: 485000,
-      status: 'active',
-      views: 234,
-      favorites: 12,
-      offers: 3,
-      daysOnMarket: 7,
-      image: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400'
-    }
-  ]);
+  // Real data from API
+  const [listings, setListings] = useState([]);
+  const [offers, setOffers] = useState([]);
+  const [transactions, setTransactions] = useState([]);
 
-  const [offers, setOffers] = useState([
-    {
-      id: 1,
-      propertyId: 1,
-      buyerName: 'John Smith',
-      amount: 475000,
-      earnestMoney: 10000,
-      financingType: 'Conventional',
-      closingDate: '2024-02-15',
-      status: 'pending',
-      submittedAt: '2024-01-10'
-    },
-    {
-      id: 2,
-      propertyId: 1,
-      buyerName: 'Sarah Johnson',
-      amount: 480000,
-      earnestMoney: 15000,
-      financingType: 'Cash',
-      closingDate: '2024-02-01',
-      status: 'pending',
-      submittedAt: '2024-01-11'
+  // Fetch seller's data
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const [listingsRes, offersRes, transactionsRes] = await Promise.all([
+        propertiesAPI.getMyListings().catch(() => ({ data: [] })),
+        offersAPI.getAll({ role: 'seller' }).catch(() => ({ data: [] })),
+        transactionsAPI.getAll().catch(() => ({ data: [] })),
+      ]);
+
+      setListings(listingsRes.data || []);
+      setOffers(offersRes.data || []);
+      setTransactions(transactionsRes.data || []);
+    } catch (err) {
+      console.error('Error fetching data:', err);
+      setError('Failed to load data. Please try again.');
+    } finally {
+      setLoading(false);
     }
-  ]);
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const [newListing, setNewListing] = useState({
     address: '',
@@ -75,26 +68,112 @@ export default function SellerDashboard() {
 
   const stats = [
     { label: 'Active Listings', value: listings.filter(l => l.status === 'active').length, icon: Building, color: 'blue' },
-    { label: 'Total Views', value: listings.reduce((acc, l) => acc + l.views, 0), icon: Eye, color: 'green' },
+    { label: 'Total Views', value: listings.reduce((acc, l) => acc + (l.view_count || 0), 0), icon: Eye, color: 'green' },
     { label: 'Pending Offers', value: offers.filter(o => o.status === 'pending').length, icon: DollarSign, color: 'yellow' },
-    { label: 'Favorites', value: listings.reduce((acc, l) => acc + l.favorites, 0), icon: Heart, color: 'red' }
+    { label: 'Favorites', value: listings.reduce((acc, l) => acc + (l.favorite_count || 0), 0), icon: Heart, color: 'red' }
   ];
+
+  // Helper function to get listing display data
+  const getListingDisplay = (listing) => ({
+    id: listing.id,
+    address: listing.address_line1,
+    city: listing.city,
+    state: listing.state,
+    zip: listing.zip_code,
+    price: listing.list_price,
+    status: listing.status,
+    views: listing.view_count || 0,
+    favorites: listing.favorite_count || 0,
+    offers: listing.offers?.length || 0,
+    daysOnMarket: Math.floor((new Date() - new Date(listing.created_at)) / (1000 * 60 * 60 * 24)),
+    image: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400'
+  });
+
+  // Helper function to get offer display data
+  const getOfferDisplay = (offer) => ({
+    id: offer.id,
+    propertyId: offer.property_id,
+    buyerName: offer.buyer ? `${offer.buyer.first_name} ${offer.buyer.last_name}` : 'Unknown Buyer',
+    amount: offer.offer_price,
+    earnestMoney: offer.earnest_money,
+    financingType: offer.financing_type,
+    closingDate: offer.proposed_closing_date ? new Date(offer.proposed_closing_date).toLocaleDateString() : 'TBD',
+    status: offer.status,
+    submittedAt: new Date(offer.created_at).toLocaleDateString()
+  });
 
   const handleLogout = () => {
     logout();
     navigate('/');
   };
 
-  const handleAcceptOffer = (offerId) => {
-    setOffers(offers.map(o =>
-      o.id === offerId ? { ...o, status: 'accepted' } : o.status === 'pending' ? { ...o, status: 'rejected' } : o
-    ));
+  const handleAcceptOffer = async (offerId) => {
+    try {
+      setSubmitting(true);
+      await offersAPI.accept(offerId);
+      await fetchData(); // Refresh data
+    } catch (err) {
+      console.error('Error accepting offer:', err);
+      alert(err.response?.data?.message || 'Failed to accept offer');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const handleRejectOffer = (offerId) => {
-    setOffers(offers.map(o =>
-      o.id === offerId ? { ...o, status: 'rejected' } : o
-    ));
+  const handleRejectOffer = async (offerId) => {
+    try {
+      setSubmitting(true);
+      await offersAPI.reject(offerId);
+      await fetchData(); // Refresh data
+    } catch (err) {
+      console.error('Error rejecting offer:', err);
+      alert(err.response?.data?.message || 'Failed to reject offer');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCreateListing = async () => {
+    try {
+      setSubmitting(true);
+      const propertyData = {
+        address_line1: newListing.address,
+        city: newListing.city,
+        state: newListing.state,
+        zip_code: newListing.zip,
+        property_type: newListing.propertyType,
+        bedrooms: parseInt(newListing.bedrooms) || 0,
+        bathrooms: parseFloat(newListing.bathrooms) || 0,
+        sqft: parseInt(newListing.sqft) || 0,
+        year_built: parseInt(newListing.yearBuilt) || null,
+        list_price: parseFloat(newListing.price) || 0,
+        description: newListing.description,
+      };
+
+      await propertiesAPI.create(propertyData);
+      setShowCreateListing(false);
+      setListingStep(1);
+      setNewListing({
+        address: '',
+        city: '',
+        state: 'TX',
+        zip: '',
+        propertyType: '',
+        bedrooms: '',
+        bathrooms: '',
+        sqft: '',
+        yearBuilt: '',
+        price: '',
+        description: '',
+        photos: []
+      });
+      await fetchData();
+    } catch (err) {
+      console.error('Error creating listing:', err);
+      alert(err.response?.data?.message || 'Failed to create listing');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const renderDashboard = () => (
@@ -623,14 +702,14 @@ export default function SellerDashboard() {
               if (listingStep < 4) {
                 setListingStep(listingStep + 1);
               } else {
-                // Submit listing
-                setShowCreateListing(false);
-                setListingStep(1);
+                handleCreateListing();
               }
             }}
-            className="px-8 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
+            disabled={submitting}
+            className="px-8 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
           >
-            {listingStep === 4 ? 'Create Listing' : 'Continue'}
+            {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            {listingStep === 4 ? (submitting ? 'Creating...' : 'Create Listing') : 'Continue'}
           </button>
         </div>
       </div>

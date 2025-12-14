@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { propertiesAPI, offersAPI, notificationsAPI } from '@/services/api';
 import {
   Home, Search, Heart, FileText, MessageSquare, Bell, Settings, LogOut,
   MapPin, Bed, Bath, Square, DollarSign, Filter, Grid, List, ChevronDown,
   X, Send, Clock, CheckCircle, AlertCircle, Star, Phone, Mail, Calendar,
-  Building2, Droplets, GraduationCap, Shield, TrendingUp, Eye, HeartOff
+  Building2, Droplets, GraduationCap, Shield, TrendingUp, Eye, HeartOff, Loader2
 } from 'lucide-react';
 
 export default function BuyerDashboard() {
@@ -16,7 +17,9 @@ export default function BuyerDashboard() {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [showOfferModal, setShowOfferModal] = useState(false);
-  const [favorites, setFavorites] = useState([1, 3]);
+  const [favorites, setFavorites] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   // Filter states
   const [filters, setFilters] = useState({
