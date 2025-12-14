@@ -20,6 +20,7 @@ import vendorRoutes from './routes/vendors.js';
 import documentRoutes from './routes/documents.js';
 import messageRoutes from './routes/messages.js';
 import notificationRoutes from './routes/notifications.js';
+import uploadRoutes from './routes/uploads.js';
 
 // Middleware
 import { errorHandler } from './middleware/errorHandler.js';
@@ -86,6 +87,9 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('combined', { stream: logger.stream }));
 }
 
+// Serve static files (uploaded files)
+app.use('/uploads', express.static(join(__dirname, 'uploads')));
+
 // =====================================================
 // ROUTES
 // =====================================================
@@ -108,6 +112,7 @@ app.use('/api/vendors', vendorRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/uploads', uploadRoutes);
 
 // Catch-all for undefined routes
 app.use('*', (req, res) => {

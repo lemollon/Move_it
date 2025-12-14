@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { transactionsAPI, documentsAPI, messagesAPI } from '@/services/api';
 import {
   Home, ArrowLeft, Clock, FileText, MessageSquare, Users, CheckCircle, Circle,
   AlertCircle, Upload, Download, Eye, Send, Paperclip, Calendar, DollarSign,
   MapPin, Phone, Mail, Building2, Shield, X, ChevronRight, ChevronDown,
-  Bell, Settings, MoreVertical, Plus, Check, AlertTriangle, Briefcase
+  Bell, Settings, MoreVertical, Plus, Check, AlertTriangle, Briefcase, Loader2
 } from 'lucide-react';
 
 export default function TransactionCenter() {
@@ -16,29 +17,163 @@ export default function TransactionCenter() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [expandedMilestone, setExpandedMilestone] = useState(null);
   const [messageText, setMessageText] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
-  // Demo transaction data
-  const transaction = {
-    id: transactionId || 'TXN-2024-001',
-    propertyAddress: '4521 Oak Valley Dr, Dallas, TX 75287',
-    listPrice: 425000,
-    salePrice: 415000,
-    status: 'in_progress',
-    createdAt: '2024-01-10',
-    expectedClose: '2024-02-15',
-    daysRemaining: 32,
-    progress: 45,
-    buyer: {
-      name: 'John Smith',
-      email: 'john.smith@email.com',
-      phone: '(214) 555-1234'
-    },
-    seller: {
-      name: 'Mary Johnson',
-      email: 'mary.johnson@email.com',
-      phone: '(972) 555-5678'
+  // Real data from API
+  const [transaction, setTransaction] = useState(null);
+  const [documents, setDocuments] = useState([]);
+  const [messages, setMessages] = useState([]);
+
+  // Fetch transaction data
+  const fetchData = useCallback(async () => {
+    if (!transactionId) return;
+
+    try {
+      setLoading(true);
+      const [txnRes, docsRes, msgsRes] = await Promise.all([
+        transactionsAPI.getById(transactionId).catch(() => ({ data: null })),
+        transactionsAPI.getDocuments(transactionId).catch(() => ({ data: [] })),
+        messagesAPI.getByTransaction(transactionId).catch(() => ({ data: [] })),
+      ]);
+
+      if (txnRes.data) {
+        const t = txnRes.data;
+        setTransaction({
+          id: t.id,
+          propertyAddress: t.property ? `${t.property.address_line1}, ${t.property.city}, ${t.property.state} ${t.property.zip_code}` : 'Unknown Property',
+          listPrice: t.property?.list_price || 0,
+          salePrice: t.purchase_price || 0,
+          status: t.status,
+          createdAt: t.created_at,
+          expectedClose: t.closing_date,
+          daysRemaining: t.closing_date ? Math.max(0, Math.floor((new Date(t.closing_date) - new Date()) / (1000 * 60 * 60 * 24))) : 0,
+          progress: calculateProgress(t.status),
+          buyer: {
+            name: t.buyer ? `${t.buyer.first_name} ${t.buyer.last_name}` : 'Unknown',
+            email: t.buyer?.email || '',
+            phone: t.buyer?.phone || ''
+          },
+          seller: {
+            name: t.seller ? `${t.seller.first_name} ${t.seller.last_name}` : 'Unknown',
+            email: t.seller?.email || '',
+            phone: t.seller?.phone || ''
+          }
+        });
+      }
+
+      setDocuments((docsRes.data || []).map(d => ({
+        id: d.id,
+        name: d.filename,
+        type: d.document_type,
+        uploadedBy: d.uploader ? `${d.uploader.first_name} ${d.uploader.last_name}` : 'Unknown',
+        date: d.created_at,
+        status: d.buyer_signed && d.seller_signed ? 'signed' : d.requires_signature ? 'pending_signature' : 'completed',
+        url: d.url
+      })));
+
+      setMessages((msgsRes.data || []).map(m => ({
+        id: m.id,
+        sender: m.sender ? `${m.sender.first_name} ${m.sender.last_name}` : 'Unknown',
+        role: m.sender_id === user?.id ? 'You' : 'Other',
+        message: m.message,
+        time: new Date(m.created_at).toLocaleString(),
+        isOwn: m.sender_id === user?.id
+      })));
+    } catch (err) {
+      console.error('Error fetching transaction:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [transactionId, user?.id]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const calculateProgress = (status) => {
+    const stages = ['initiated', 'contract_pending', 'inspection_period', 'appraisal_ordered', 'title_search', 'financing_contingency', 'final_walkthrough', 'closing_scheduled', 'closed'];
+    const idx = stages.indexOf(status);
+    return idx >= 0 ? Math.round((idx / (stages.length - 1)) * 100) : 0;
+  };
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!messageText.trim() || !transactionId) return;
+
+    try {
+      setSubmitting(true);
+      await messagesAPI.send({
+        transaction_id: transactionId,
+        message: messageText.trim()
+      });
+      setMessageText('');
+      await fetchData();
+    } catch (err) {
+      console.error('Error sending message:', err);
+      alert(err.response?.data?.message || 'Failed to send message');
+    } finally {
+      setSubmitting(false);
     }
   };
+
+  const handleUploadDocument = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+
+    try {
+      setSubmitting(true);
+      await documentsAPI.create({
+        transaction_id: transactionId,
+        document_type: formData.get('documentType'),
+        filename: formData.get('documentName'),
+        url: '/placeholder-url', // In production, upload to S3 first
+        requires_signature: formData.get('requiresSignature') === 'on'
+      });
+      setShowUploadModal(false);
+      await fetchData();
+      alert('Document uploaded successfully!');
+    } catch (err) {
+      console.error('Error uploading document:', err);
+      alert(err.response?.data?.message || 'Failed to upload document');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSignDocument = async (docId) => {
+    try {
+      setSubmitting(true);
+      await documentsAPI.sign(docId);
+      await fetchData();
+      alert('Document signed successfully!');
+    } catch (err) {
+      console.error('Error signing document:', err);
+      alert(err.response?.data?.message || 'Failed to sign document');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Show loading or no transaction message
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  if (!transaction) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Transaction not found</h2>
+          <button onClick={() => navigate(-1)} className="text-blue-600 hover:underline">Go back</button>
+        </div>
+      </div>
+    );
+  }
 
   // Timeline milestones
   const milestones = [
