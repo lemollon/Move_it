@@ -6,10 +6,23 @@
     <link rel="manifest" href="/manifest.json" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Move-it - Your Virtual Realtor</title>
-    <meta name="description" content="Save thousands with 2% transaction fees. Close in 30 days. Your virtual realtor for FSBO, investors, and buyers in Texas." />
+    <meta
+      name="description"
+      content="Save thousands with 2% transaction fees. Close in 30 days. Your virtual realtor for FSBO, investors, and buyers in Texas."
+    />
   </head>
   <body>
     <div id="root"></div>
+
+    <!-- Service Worker Registration -->
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/sw.js");
+        });
+      }
+    </script>
+
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
