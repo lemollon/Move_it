@@ -177,6 +177,100 @@ const templates = {
       </div>
     `
   }),
+
+  // Disclosure Templates
+  disclosureCompleted: (buyer, property, disclosureId) => ({
+    subject: `Seller's Disclosure Completed: ${property.address_line1}`,
+    text: `Hi ${buyer.first_name},\n\nThe seller has completed the disclosure notice for the property at ${property.address_line1}.\n\nYou can now review the disclosure and acknowledge receipt.\n\nLog in to view the disclosure.\n\nBest,\nThe Move-it Team`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%); padding: 30px; text-align: center;">
+          <h1 style="color: white; margin: 0;">📋 Disclosure Ready</h1>
+        </div>
+        <div style="padding: 30px; background: #f9fafb;">
+          <p>Hi ${buyer.first_name},</p>
+          <p>The seller has completed the disclosure notice for:</p>
+          <div style="background: white; border: 1px solid #E5E7EB; border-radius: 8px; padding: 20px; margin: 20px 0;">
+            <p style="font-weight: bold; margin: 0;">${property.address_line1}</p>
+            <p style="color: #6B7280; margin: 5px 0 0 0;">${property.city}, ${property.state} ${property.zip_code}</p>
+          </div>
+          <p>Please review the disclosure carefully and sign to acknowledge receipt.</p>
+          <a href="${process.env.FRONTEND_URL || 'https://move-it.com'}/disclosure/view/${disclosureId}" style="display: inline-block; background: #3B82F6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px;">View Disclosure</a>
+        </div>
+      </div>
+    `
+  }),
+
+  disclosureSigned: (buyer, property, seller, disclosureId) => ({
+    subject: `Disclosure Signed: ${property.address_line1}`,
+    text: `Hi ${buyer.first_name},\n\nThe seller (${seller.first_name} ${seller.last_name}) has signed the disclosure notice for ${property.address_line1}.\n\nPlease review and sign to acknowledge receipt.\n\nBest,\nThe Move-it Team`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%); padding: 30px; text-align: center;">
+          <h1 style="color: white; margin: 0;">✍️ Disclosure Signed</h1>
+        </div>
+        <div style="padding: 30px; background: #f9fafb;">
+          <p>Hi ${buyer.first_name},</p>
+          <p>The seller has signed the disclosure notice for:</p>
+          <div style="background: white; border: 1px solid #E5E7EB; border-radius: 8px; padding: 20px; margin: 20px 0;">
+            <p style="font-weight: bold; margin: 0;">${property.address_line1}</p>
+            <p style="color: #6B7280; margin: 5px 0 0 0;">Signed by: ${seller.first_name} ${seller.last_name}</p>
+            <p style="color: #6B7280; margin: 5px 0 0 0;">Date: ${new Date().toLocaleDateString()}</p>
+          </div>
+          <p>Please review the disclosure and sign to acknowledge receipt.</p>
+          <a href="${process.env.FRONTEND_URL || 'https://move-it.com'}/disclosure/view/${disclosureId}" style="display: inline-block; background: #8B5CF6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px;">Review & Sign</a>
+        </div>
+      </div>
+    `
+  }),
+
+  buyerAcknowledged: (seller, property, buyer, disclosureId) => ({
+    subject: `Buyer Acknowledged Disclosure: ${property.address_line1}`,
+    text: `Hi ${seller.first_name},\n\nGreat news! ${buyer.first_name} ${buyer.last_name} has acknowledged receipt of your disclosure for ${property.address_line1}.\n\nThe disclosure process is now complete.\n\nBest,\nThe Move-it Team`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #10B981 0%, #059669 100%); padding: 30px; text-align: center;">
+          <h1 style="color: white; margin: 0;">✅ Disclosure Complete</h1>
+        </div>
+        <div style="padding: 30px; background: #f9fafb;">
+          <p>Hi ${seller.first_name},</p>
+          <p>Great news! The buyer has acknowledged receipt of your disclosure for:</p>
+          <div style="background: white; border: 2px solid #10B981; border-radius: 8px; padding: 20px; margin: 20px 0;">
+            <p style="font-weight: bold; margin: 0;">${property.address_line1}</p>
+            <p style="color: #6B7280; margin: 5px 0 0 0;">Acknowledged by: ${buyer.first_name} ${buyer.last_name}</p>
+            <p style="color: #6B7280; margin: 5px 0 0 0;">Date: ${new Date().toLocaleDateString()}</p>
+          </div>
+          <p>The disclosure process is now complete. Both parties have a signed copy on record.</p>
+          <a href="${process.env.FRONTEND_URL || 'https://move-it.com'}/disclosure/${disclosureId}" style="display: inline-block; background: #10B981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px;">View Document</a>
+        </div>
+      </div>
+    `
+  }),
+
+  disclosureReminder: (seller, property, completionPercentage) => ({
+    subject: `Reminder: Complete Your Disclosure - ${property.address_line1}`,
+    text: `Hi ${seller.first_name},\n\nYour seller's disclosure for ${property.address_line1} is ${completionPercentage}% complete.\n\nTexas law requires sellers to provide buyers with a disclosure notice. Please complete your disclosure to proceed.\n\nBest,\nThe Move-it Team`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%); padding: 30px; text-align: center;">
+          <h1 style="color: white; margin: 0;">⏰ Disclosure Reminder</h1>
+        </div>
+        <div style="padding: 30px; background: #f9fafb;">
+          <p>Hi ${seller.first_name},</p>
+          <p>Your seller's disclosure for the following property is incomplete:</p>
+          <div style="background: white; border: 1px solid #E5E7EB; border-radius: 8px; padding: 20px; margin: 20px 0;">
+            <p style="font-weight: bold; margin: 0;">${property.address_line1}</p>
+            <div style="background: #E5E7EB; height: 8px; border-radius: 4px; margin: 15px 0;">
+              <div style="background: #F59E0B; height: 8px; border-radius: 4px; width: ${completionPercentage}%;"></div>
+            </div>
+            <p style="color: #6B7280; margin: 0;">${completionPercentage}% complete</p>
+          </div>
+          <p>Texas law requires sellers to provide buyers with a disclosure notice. Please complete your disclosure to proceed with the transaction.</p>
+          <a href="${process.env.FRONTEND_URL || 'https://move-it.com'}/disclosure/${property.id}" style="display: inline-block; background: #F59E0B; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px;">Continue Disclosure</a>
+        </div>
+      </div>
+    `
+  }),
 };
 
 // Email sending functions
@@ -233,6 +327,30 @@ export const emailService = {
   async sendMessageNotification(recipient, sender, message) {
     const template = templates.messageReceived(recipient, sender, message);
     return this.send(recipient.email, template.subject, template.text, template.html);
+  },
+
+  // Disclosure notification: completed
+  async sendDisclosureCompleted(buyer, property, disclosureId) {
+    const template = templates.disclosureCompleted(buyer, property, disclosureId);
+    return this.send(buyer.email, template.subject, template.text, template.html);
+  },
+
+  // Disclosure notification: seller signed
+  async sendDisclosureSigned(buyer, property, seller, disclosureId) {
+    const template = templates.disclosureSigned(buyer, property, seller, disclosureId);
+    return this.send(buyer.email, template.subject, template.text, template.html);
+  },
+
+  // Disclosure notification: buyer acknowledged
+  async sendBuyerAcknowledged(seller, property, buyer, disclosureId) {
+    const template = templates.buyerAcknowledged(seller, property, buyer, disclosureId);
+    return this.send(seller.email, template.subject, template.text, template.html);
+  },
+
+  // Disclosure notification: reminder
+  async sendDisclosureReminder(seller, property, completionPercentage) {
+    const template = templates.disclosureReminder(seller, property, completionPercentage);
+    return this.send(seller.email, template.subject, template.text, template.html);
   },
 };
 
