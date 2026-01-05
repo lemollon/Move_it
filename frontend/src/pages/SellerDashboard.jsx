@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { propertiesAPI, offersAPI, transactionsAPI, messagesAPI } from '@/services/api';
+import { propertiesAPI, offersAPI, transactionsAPI, messagesAPI, disclosuresAPI } from '@/services/api';
 import {
   Home, Plus, DollarSign, Eye, Heart, Clock, CheckCircle,
   FileText, MessageSquare, Users, LogOut, Camera, MapPin,
   ChevronRight, AlertCircle, TrendingUp, Calendar, Building,
-  Upload, Sparkles, X, Check, Loader2
+  Upload, Sparkles, X, Check, Loader2, ClipboardList, ExternalLink
 } from 'lucide-react';
 
 export default function SellerDashboard() {
@@ -23,6 +23,7 @@ export default function SellerDashboard() {
   const [listings, setListings] = useState([]);
   const [offers, setOffers] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [disclosures, setDisclosures] = useState([]);
 
   // Fetch seller's data
   const fetchData = useCallback(async () => {
@@ -30,15 +31,17 @@ export default function SellerDashboard() {
       setLoading(true);
       setError(null);
 
-      const [listingsRes, offersRes, transactionsRes] = await Promise.all([
+      const [listingsRes, offersRes, transactionsRes, disclosuresRes] = await Promise.all([
         propertiesAPI.getMyListings().catch(() => ({ data: [] })),
         offersAPI.getAll({ role: 'seller' }).catch(() => ({ data: [] })),
         transactionsAPI.getAll().catch(() => ({ data: [] })),
+        disclosuresAPI.getSellerDisclosures().catch(() => ({ data: [] })),
       ]);
 
       setListings(listingsRes.data || []);
       setOffers(offersRes.data || []);
       setTransactions(transactionsRes.data || []);
+      setDisclosures(disclosuresRes.data || []);
     } catch (err) {
       console.error('Error fetching data:', err);
       setError('Failed to load data. Please try again.');
@@ -779,13 +782,131 @@ export default function SellerDashboard() {
             {activeTab === 'listings' && renderListings()}
             {activeTab === 'offers' && renderOffers()}
             {activeTab === 'disclosures' && (
-              <div className="bg-white rounded-xl p-8 text-center">
-                <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-gray-800 mb-2">Seller Disclosures</h3>
-                <p className="text-gray-500 mb-6">Complete the required Texas seller disclosure form</p>
-                <button className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold">
-                  Start Disclosure Form
-                </button>
+              <div className="space-y-6">
+                <h2 className="text-2xl font-bold text-gray-800">Disclosures & Checklists</h2>
+
+                {/* FSBO Checklist Card */}
+                <div className="bg-gradient-to-r from-purple-600 to-purple-700 rounded-xl p-6 text-white">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <ClipboardList className="w-6 h-6" />
+                        <h3 className="text-xl font-bold">FSBO Listing Checklist</h3>
+                      </div>
+                      <p className="text-purple-100 mb-4">
+                        Prepare your property for sale with our comprehensive checklist
+                      </p>
+                      <button
+                        onClick={() => navigate('/fsbo-checklist')}
+                        className="bg-white text-purple-600 px-6 py-2 rounded-lg font-semibold hover:bg-purple-50 transition-colors flex items-center gap-2"
+                      >
+                        <ClipboardList className="w-4 h-4" />
+                        Open Checklist
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Property Disclosures */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="p-6 border-b border-gray-100">
+                    <h3 className="text-lg font-bold text-gray-800">Property Disclosures</h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Texas law requires sellers to complete a Seller's Disclosure Notice (TXR-1406) for each property
+                    </p>
+                  </div>
+
+                  {listings.length > 0 ? (
+                    <div className="divide-y divide-gray-100">
+                      {listings.map((listing) => {
+                        const disclosure = disclosures.find(d => d.property_id === listing.id);
+                        const hasDisclosure = !!disclosure;
+                        const completion = disclosure?.completion || 0;
+                        const status = disclosure?.status || 'not_started';
+
+                        return (
+                          <div key={listing.id} className="p-4 flex items-center justify-between hover:bg-gray-50">
+                            <div className="flex items-center gap-4">
+                              <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
+                                <Building className="w-8 h-8 text-gray-400" />
+                              </div>
+                              <div>
+                                <div className="font-medium text-gray-800">{listing.address_line1}</div>
+                                <div className="text-sm text-gray-500">
+                                  {listing.city}, {listing.state} {listing.zip_code}
+                                </div>
+                                {hasDisclosure && (
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                      <div
+                                        className={`h-full rounded-full ${
+                                          status === 'signed' ? 'bg-purple-500' :
+                                          status === 'completed' ? 'bg-green-500' : 'bg-blue-500'
+                                        }`}
+                                        style={{ width: `${completion}%` }}
+                                      />
+                                    </div>
+                                    <span className="text-xs text-gray-500">{completion}%</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              {hasDisclosure ? (
+                                <>
+                                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                    status === 'signed' ? 'bg-purple-100 text-purple-700' :
+                                    status === 'completed' ? 'bg-green-100 text-green-700' :
+                                    status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
+                                    'bg-gray-100 text-gray-700'
+                                  }`}>
+                                    {status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                  </span>
+                                  <button
+                                    onClick={() => navigate(`/disclosure/${listing.id}`)}
+                                    className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg font-medium hover:bg-blue-100 flex items-center gap-2"
+                                  >
+                                    {status === 'signed' ? 'View' : 'Continue'}
+                                    <ExternalLink className="w-4 h-4" />
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  onClick={() => navigate(`/disclosure/${listing.id}`)}
+                                  className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 flex items-center gap-2"
+                                >
+                                  <FileText className="w-4 h-4" />
+                                  Start Disclosure
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="p-8 text-center">
+                      <Building className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                      <p className="text-gray-500">No properties yet. Create a listing first to complete its disclosure.</p>
+                      <button
+                        onClick={() => setShowCreateListing(true)}
+                        className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
+                      >
+                        Create Listing
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Info Box */}
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-blue-700">
+                    <strong>Required by Texas Law:</strong> Sellers must provide buyers with a completed
+                    Seller's Disclosure Notice before the buyer signs the contract. The disclosure must
+                    be accurate and truthful to the best of your knowledge.
+                  </div>
+                </div>
               </div>
             )}
             {activeTab === 'transactions' && (
