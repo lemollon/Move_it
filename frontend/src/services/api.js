@@ -231,6 +231,10 @@ export const disclosuresAPI = {
   generatePDF: (id) => api.post(`/disclosures/${id}/generate-pdf`),
   getPDF: (id) => api.get(`/disclosures/${id}/pdf`),
 
+  // Sharing
+  shareDisclosure: (id, { recipientEmail, recipientName, message }) =>
+    api.post(`/disclosures/${id}/share`, { recipientEmail, recipientName, message }),
+
   // FSBO Checklist
   getFSBOChecklist: (propertyId = null) =>
     api.get('/disclosures/fsbo-checklist', { params: propertyId ? { propertyId } : {} }),
@@ -239,6 +243,30 @@ export const disclosuresAPI = {
     api.patch(`/disclosures/fsbo-checklist/${id}/category/${category}`, { data }),
   updateFSBOChecklist: (id, data) => api.put(`/disclosures/fsbo-checklist/${id}`, data),
   deleteFSBOChecklist: (id) => api.delete(`/disclosures/fsbo-checklist/${id}`),
+};
+
+// =====================================================
+// BUYER API (for viewing shared disclosures)
+// =====================================================
+export const buyerAPI = {
+  // Get dashboard stats
+  getDashboardStats: () => api.get('/buyer/dashboard/stats'),
+
+  // Get all shared disclosures
+  getDisclosures: () => api.get('/buyer/disclosures'),
+
+  // Get single shared disclosure
+  getDisclosure: (id) => api.get(`/buyer/disclosures/${id}`),
+
+  // Acknowledge disclosure
+  acknowledgeDisclosure: (id) => api.post(`/buyer/disclosures/${id}/acknowledge`),
+
+  // Sign disclosure (buyer acknowledgment)
+  signDisclosure: (id, { signatureData, printedName }) =>
+    api.post(`/buyer/disclosures/${id}/sign`, { signatureData, printedName }),
+
+  // View disclosure by public token (no auth required)
+  viewByToken: (token) => api.get(`/buyer/disclosures/view/${token}`),
 };
 
 // =====================================================

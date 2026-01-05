@@ -10,6 +10,8 @@ import Favorite from './Favorite.js';
 import Notification from './Notification.js';
 import SellerDisclosure from './SellerDisclosure.js';
 import FSBOChecklist from './FSBOChecklist.js';
+import SharedDisclosure from './SharedDisclosure.js';
+import DisclosureAnalytics from './DisclosureAnalytics.js';
 
 // =====================================================
 // ASSOCIATIONS
@@ -76,6 +78,18 @@ FSBOChecklist.belongsTo(User, { foreignKey: 'seller_id', as: 'seller' });
 Property.hasOne(FSBOChecklist, { foreignKey: 'property_id', as: 'fsboChecklist' });
 User.hasMany(FSBOChecklist, { foreignKey: 'seller_id', as: 'fsboChecklists' });
 
+// SharedDisclosure associations
+SharedDisclosure.belongsTo(SellerDisclosure, { foreignKey: 'disclosure_id', as: 'disclosure' });
+SharedDisclosure.belongsTo(User, { foreignKey: 'shared_by', as: 'sharer' });
+SharedDisclosure.belongsTo(User, { foreignKey: 'recipient_user_id', as: 'recipient' });
+SellerDisclosure.hasMany(SharedDisclosure, { foreignKey: 'disclosure_id', as: 'shares' });
+User.hasMany(SharedDisclosure, { foreignKey: 'recipient_user_id', as: 'receivedDisclosures' });
+
+// DisclosureAnalytics associations
+DisclosureAnalytics.belongsTo(SellerDisclosure, { foreignKey: 'disclosure_id', as: 'disclosure' });
+DisclosureAnalytics.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+SellerDisclosure.hasMany(DisclosureAnalytics, { foreignKey: 'disclosure_id', as: 'analytics' });
+
 // =====================================================
 // SYNC FUNCTION
 // =====================================================
@@ -103,5 +117,7 @@ export {
   Notification,
   SellerDisclosure,
   FSBOChecklist,
+  SharedDisclosure,
+  DisclosureAnalytics,
   syncDatabase,
 };

@@ -1,4 +1,5 @@
-import { SellerDisclosure, FSBOChecklist, Property, User } from '../models/index.js';
+import crypto from 'crypto';
+import { SellerDisclosure, FSBOChecklist, Property, User, SharedDisclosure } from '../models/index.js';
 import { pdfService } from '../services/pdfService.js';
 import { emailService } from '../services/emailService.js';
 
@@ -887,8 +888,27 @@ export const shareDisclosure = async (req, res) => {
       });
     }
 
-    // Generate view link
-    const viewUrl = `${process.env.FRONTEND_URL || 'https://move-it.com'}/disclosure/view/${id}`;
+    // Generate unique access token for tracking
+    const accessToken = crypto.randomBytes(32).toString('hex');
+
+    // Check if recipient is an existing user
+    const recipientUser = await User.findOne({ where: { email: recipientEmail } });
+
+    // Create SharedDisclosure record for tracking
+    const sharedDisclosure = await SharedDisclosure.create({
+      disclosure_id: id,
+      recipient_email: recipientEmail,
+      recipient_name: recipientName || null,
+      recipient_user_id: recipientUser?.id || null,
+      shared_by: sellerId,
+      message: message || null,
+      access_token: accessToken,
+      status: 'pending',
+      expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+    });
+
+    // Generate view link with tracking token
+    const viewUrl = `${process.env.FRONTEND_URL || 'https://move-it.com'}/buyer/disclosure/${sharedDisclosure.id}`;
 
     // Send email notification
     await emailService.sendDisclosureShared({
@@ -904,6 +924,7 @@ export const shareDisclosure = async (req, res) => {
     res.json({
       message: 'Disclosure shared successfully',
       sentTo: recipientEmail,
+      shareId: sharedDisclosure.id,
       viewUrl,
       pdfUrl,
     });

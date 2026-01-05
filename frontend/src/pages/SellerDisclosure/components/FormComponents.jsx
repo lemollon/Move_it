@@ -12,7 +12,7 @@ export const YNUSelector = ({ value, onChange, disabled = false, showUnknown = t
   ];
 
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-2 flex-wrap sm:flex-nowrap">
       {options.map(opt => (
         <button
           key={opt.value}
@@ -20,14 +20,15 @@ export const YNUSelector = ({ value, onChange, disabled = false, showUnknown = t
           disabled={disabled}
           onClick={() => onChange(opt.value)}
           className={`
-            px-3 py-1.5 rounded-lg text-sm font-medium transition-all
+            px-4 py-2.5 sm:px-3 sm:py-1.5 rounded-lg text-sm font-medium transition-all
+            flex-1 sm:flex-none min-w-[70px] touch-manipulation
             ${value === opt.value
               ? opt.color === 'green'
                 ? 'bg-green-100 text-green-700 border-2 border-green-500'
                 : opt.color === 'red'
                   ? 'bg-red-100 text-red-700 border-2 border-red-500'
                   : 'bg-gray-100 text-gray-700 border-2 border-gray-500'
-              : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+              : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 active:bg-gray-100'
             }
             ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
           `}
@@ -44,16 +45,17 @@ export const YNUSelector = ({ value, onChange, disabled = false, showUnknown = t
  */
 export const YesNoSelector = ({ value, onChange, disabled = false }) => {
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-2 w-full sm:w-auto">
       <button
         type="button"
         disabled={disabled}
         onClick={() => onChange(true)}
         className={`
-          px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2
+          px-4 py-2.5 sm:py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2
+          flex-1 sm:flex-none min-w-[80px] touch-manipulation
           ${value === true
             ? 'bg-green-100 text-green-700 border-2 border-green-500'
-            : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+            : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 active:bg-gray-100'
           }
           ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
         `}
@@ -65,10 +67,11 @@ export const YesNoSelector = ({ value, onChange, disabled = false }) => {
         disabled={disabled}
         onClick={() => onChange(false)}
         className={`
-          px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2
+          px-4 py-2.5 sm:py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2
+          flex-1 sm:flex-none min-w-[80px] touch-manipulation
           ${value === false
             ? 'bg-red-100 text-red-700 border-2 border-red-500'
-            : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+            : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 active:bg-gray-100'
           }
           ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
         `}
@@ -164,10 +167,11 @@ export const QuestionRow = ({
       `}
       style={{ paddingLeft: indent * 24 }}
     >
-      <div className="flex items-start justify-between gap-4">
+      {/* Stack vertically on mobile, horizontal on larger screens */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-700">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm text-gray-700 leading-relaxed">
               {label}
               {required && <span className="text-red-500 ml-1">*</span>}
             </span>
@@ -175,9 +179,9 @@ export const QuestionRow = ({
               <button
                 type="button"
                 onClick={() => setShowHelp(!showHelp)}
-                className="text-gray-400 hover:text-blue-500 transition-colors"
+                className="text-gray-400 hover:text-blue-500 transition-colors p-1 -m-1 touch-manipulation"
               >
-                <HelpCircle size={16} />
+                <HelpCircle size={18} />
               </button>
             )}
           </div>
@@ -187,7 +191,7 @@ export const QuestionRow = ({
             </div>
           )}
         </div>
-        <div className="flex-shrink-0">
+        <div className="flex-shrink-0 w-full sm:w-auto">
           {children}
         </div>
       </div>
@@ -214,27 +218,29 @@ export const QuestionGroup = ({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
+        className="w-full px-3 sm:px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 active:bg-gray-200 transition-colors touch-manipulation"
       >
-        <div className="flex items-center gap-3">
-          {Icon && <Icon size={20} className="text-blue-600" />}
-          <span className="font-medium text-gray-800">{title}</span>
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+          {Icon && <Icon size={20} className="text-blue-600 flex-shrink-0" />}
+          <span className="font-medium text-gray-800 text-sm sm:text-base truncate">{title}</span>
           {badge && (
-            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
+            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full flex-shrink-0">
               {badge}
             </span>
           )}
         </div>
-        {isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+        <div className="flex-shrink-0 ml-2">
+          {isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+        </div>
       </button>
 
       {isOpen && (
-        <div className="p-4">
+        <div className="p-3 sm:p-4">
           {onBulkAction && (
             <button
               type="button"
               onClick={onBulkAction}
-              className="mb-4 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+              className="mb-4 w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-700 rounded-lg text-sm font-medium transition-colors flex items-center justify-center sm:justify-start gap-2 touch-manipulation"
             >
               <Check size={16} />
               {bulkActionLabel}
@@ -273,7 +279,8 @@ export const TextInput = ({
         disabled={disabled}
         maxLength={maxLength}
         className={`
-          w-full px-3 py-2 border border-gray-300 rounded-lg
+          w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-lg
+          text-base sm:text-sm
           focus:ring-2 focus:ring-blue-500 focus:border-blue-500
           disabled:bg-gray-100 disabled:cursor-not-allowed
           ${Icon ? 'pl-10' : ''}
@@ -307,13 +314,14 @@ export const TextArea = ({
         maxLength={maxLength}
         disabled={disabled}
         className={`
-          w-full px-3 py-2 border border-gray-300 rounded-lg resize-none
+          w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-lg resize-none
+          text-base sm:text-sm
           focus:ring-2 focus:ring-blue-500 focus:border-blue-500
           disabled:bg-gray-100 disabled:cursor-not-allowed
         `}
       />
       {showCount && (
-        <div className="absolute bottom-2 right-2 text-xs text-gray-400">
+        <div className="absolute bottom-2 right-2 text-xs text-gray-400 bg-white px-1">
           {charCount}/{maxLength}
         </div>
       )}
@@ -385,12 +393,12 @@ export const InfoBox = ({ children, type = 'info' }) => {
  */
 export const SectionHeader = ({ number, title, subtitle = null }) => {
   return (
-    <div className="mb-6">
-      <div className="flex items-center gap-3 mb-2">
-        <span className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+    <div className="mb-4 sm:mb-6">
+      <div className="flex items-start sm:items-center gap-3 mb-2">
+        <span className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">
           {number}
         </span>
-        <h2 className="text-xl font-semibold text-gray-800">{title}</h2>
+        <h2 className="text-lg sm:text-xl font-semibold text-gray-800 leading-tight">{title}</h2>
       </div>
       {subtitle && (
         <p className="text-sm text-gray-500 ml-11">{subtitle}</p>

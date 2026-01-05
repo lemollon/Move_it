@@ -8,7 +8,9 @@
     "start": "node server.js",
     "migrate": "node scripts/migrate.js",
     "seed": "node scripts/seed.js",
-    "test": "jest",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
+    "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
     "lint": "eslint .",
     "format": "prettier --write \"**/*.js\""
   },

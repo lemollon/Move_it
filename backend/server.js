@@ -21,6 +21,8 @@ import documentRoutes from './routes/documents.js';
 import messageRoutes from './routes/messages.js';
 import notificationRoutes from './routes/notifications.js';
 import uploadRoutes from './routes/uploads.js';
+import buyerRoutes from './routes/buyer.js';
+import analyticsRoutes from './routes/analytics.js';
 
 // Middleware
 import { errorHandler } from './middleware/errorHandler.js';
@@ -113,6 +115,8 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/uploads', uploadRoutes);
+app.use('/api/buyer', buyerRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Catch-all for undefined routes
 app.use('*', (req, res) => {

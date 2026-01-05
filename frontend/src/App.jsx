@@ -15,6 +15,8 @@ import ContractInfoCollector from '@/pages/ContractInfoCollector';
 import SellerDisclosure from '@/pages/SellerDisclosure';
 import FSBOChecklist from '@/pages/FSBOChecklist';
 import BuyerDisclosureView from '@/pages/BuyerDisclosureView';
+import BuyerDisclosuresPage from '@/pages/BuyerDisclosuresPage';
+import BuyerDisclosureViewPage from '@/pages/BuyerDisclosureViewPage';
 
 // Protected Route Component
 import ProtectedRoute from '@/components/shared/ProtectedRoute';
@@ -107,6 +109,26 @@ function App() {
             element={
               <ProtectedRoute requiredRole="buyer">
                 <BuyerDisclosureView />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Buyer Disclosures List */}
+          <Route
+            path="/buyer/disclosures"
+            element={
+              <ProtectedRoute requiredRole="buyer">
+                <BuyerDisclosuresPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Buyer Disclosure Detail View */}
+          <Route
+            path="/buyer/disclosure/:id"
+            element={
+              <ProtectedRoute requiredRole="buyer">
+                <BuyerDisclosureViewPage />
               </ProtectedRoute>
             }
           />
