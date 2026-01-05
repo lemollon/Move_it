@@ -1,35 +1,44 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
-// Create transporter
-const createTransporter = () => {
-  // In production, use actual SMTP credentials from environment variables
-  // For development/testing, use a test account or console logging
-  if (process.env.NODE_ENV === 'production' && process.env.SMTP_HOST) {
-    return nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: process.env.SMTP_PORT || 587,
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
+// Initialize Resend client
+const resend = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
+
+// Email sender configuration
+const FROM_EMAIL = process.env.FROM_EMAIL || 'Move-it <noreply@move-it.com>';
+
+/**
+ * Send email using Resend
+ * Falls back to console logging in development if no API key
+ */
+const sendEmail = async ({ to, subject, text, html }) => {
+  // Development fallback - log to console
+  if (!resend) {
+    console.log('=== EMAIL NOTIFICATION (Dev Mode) ===');
+    console.log('To:', to);
+    console.log('Subject:', subject);
+    console.log('Preview:', text?.substring(0, 200) + '...');
+    console.log('=====================================');
+    return { id: 'dev-' + Date.now(), success: true };
   }
 
-  // For development - log emails to console
-  return {
-    sendMail: async (mailOptions) => {
-      console.log('=== EMAIL NOTIFICATION ===');
-      console.log('To:', mailOptions.to);
-      console.log('Subject:', mailOptions.subject);
-      console.log('Text:', mailOptions.text?.substring(0, 200) + '...');
-      console.log('========================');
-      return { messageId: 'dev-' + Date.now() };
-    }
-  };
-};
+  try {
+    const result = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: Array.isArray(to) ? to : [to],
+      subject,
+      text,
+      html,
+    });
 
-const transporter = createTransporter();
+    console.log('Email sent via Resend:', result.id);
+    return { id: result.id, success: true };
+  } catch (error) {
+    console.error('Resend email error:', error);
+    throw error;
+  }
+};
 
 // Email templates
 const templates = {
@@ -271,26 +280,68 @@ const templates = {
       </div>
     `
   }),
+
+  // Password Reset Templates
+  forgotPassword: (user, resetToken) => {
+    const resetUrl = `${process.env.FRONTEND_URL || 'https://move-it.com'}/reset-password?token=${resetToken}`;
+    return {
+      subject: 'Reset Your Move-it Password',
+      text: `Hi ${user.first_name},\n\nYou requested to reset your password. Click the link below to create a new password:\n\n${resetUrl}\n\nThis link expires in 1 hour.\n\nIf you didn't request this, please ignore this email.\n\nBest,\nThe Move-it Team`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%); padding: 30px; text-align: center;">
+            <h1 style="color: white; margin: 0;">🔐 Password Reset</h1>
+          </div>
+          <div style="padding: 30px; background: #f9fafb;">
+            <p>Hi ${user.first_name},</p>
+            <p>You requested to reset your password. Click the button below to create a new password:</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${resetUrl}" style="display: inline-block; background: #3B82F6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold;">Reset Password</a>
+            </div>
+            <p style="color: #6B7280; font-size: 14px;">This link expires in 1 hour.</p>
+            <p style="color: #6B7280; font-size: 14px;">If you didn't request this password reset, you can safely ignore this email.</p>
+            <hr style="border: none; border-top: 1px solid #E5E7EB; margin: 20px 0;" />
+            <p style="color: #9CA3AF; font-size: 12px;">If the button doesn't work, copy and paste this link into your browser:</p>
+            <p style="color: #9CA3AF; font-size: 12px; word-break: break-all;">${resetUrl}</p>
+          </div>
+          <div style="padding: 20px; text-align: center; color: #6B7280; font-size: 12px;">
+            <p>Move-it Inc. | Texas Real Estate Platform</p>
+          </div>
+        </div>
+      `
+    };
+  },
+
+  passwordResetSuccess: (user) => ({
+    subject: 'Your Move-it Password Has Been Changed',
+    text: `Hi ${user.first_name},\n\nYour password has been successfully changed.\n\nIf you didn't make this change, please contact our support team immediately.\n\nBest,\nThe Move-it Team`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #10B981 0%, #059669 100%); padding: 30px; text-align: center;">
+          <h1 style="color: white; margin: 0;">✅ Password Changed</h1>
+        </div>
+        <div style="padding: 30px; background: #f9fafb;">
+          <p>Hi ${user.first_name},</p>
+          <p>Your password has been successfully changed.</p>
+          <p>You can now log in with your new password.</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.FRONTEND_URL || 'https://move-it.com'}/login" style="display: inline-block; background: #10B981; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold;">Log In</a>
+          </div>
+          <p style="color: #DC2626; font-size: 14px;"><strong>Didn't make this change?</strong> Please contact our support team immediately.</p>
+        </div>
+        <div style="padding: 20px; text-align: center; color: #6B7280; font-size: 12px;">
+          <p>Move-it Inc. | Texas Real Estate Platform</p>
+        </div>
+      </div>
+    `
+  }),
 };
 
 // Email sending functions
 export const emailService = {
   // Send raw email
   async send(to, subject, text, html) {
-    try {
-      const result = await transporter.sendMail({
-        from: process.env.EMAIL_FROM || '"Move-it" <noreply@move-it.com>',
-        to,
-        subject,
-        text,
-        html,
-      });
-      console.log('Email sent:', result.messageId);
-      return result;
-    } catch (error) {
-      console.error('Error sending email:', error);
-      throw error;
-    }
+    return sendEmail({ to, subject, text, html });
   },
 
   // Send welcome email
@@ -351,6 +402,56 @@ export const emailService = {
   async sendDisclosureReminder(seller, property, completionPercentage) {
     const template = templates.disclosureReminder(seller, property, completionPercentage);
     return this.send(seller.email, template.subject, template.text, template.html);
+  },
+
+  // Password reset email
+  async sendPasswordResetEmail(user, resetToken) {
+    const template = templates.forgotPassword(user, resetToken);
+    return this.send(user.email, template.subject, template.text, template.html);
+  },
+
+  // Password reset success confirmation
+  async sendPasswordResetSuccess(user) {
+    const template = templates.passwordResetSuccess(user);
+    return this.send(user.email, template.subject, template.text, template.html);
+  },
+
+  // Share disclosure with buyer
+  async sendDisclosureShared({ to, recipientName, sellerName, propertyAddress, viewUrl, pdfUrl, message }) {
+    const subject = `Seller's Disclosure: ${propertyAddress}`;
+    const text = `Hi ${recipientName},\n\n${sellerName} has shared the Seller's Disclosure Notice for ${propertyAddress} with you.\n\n${message ? `Message from seller: "${message}"\n\n` : ''}You can view the disclosure online at: ${viewUrl}\n\n${pdfUrl ? `Download PDF: ${pdfUrl}\n\n` : ''}Please review this disclosure carefully. Under Texas law, sellers are required to disclose known material defects of the property.\n\nBest,\nThe Move-it Team`;
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%); padding: 30px; text-align: center;">
+          <h1 style="color: white; margin: 0;">📋 Seller's Disclosure</h1>
+        </div>
+        <div style="padding: 30px; background: #f9fafb;">
+          <p>Hi ${recipientName},</p>
+          <p><strong>${sellerName}</strong> has shared the Seller's Disclosure Notice with you for:</p>
+          <div style="background: white; border: 1px solid #E5E7EB; border-radius: 8px; padding: 20px; margin: 20px 0;">
+            <p style="font-weight: bold; font-size: 18px; margin: 0;">${propertyAddress}</p>
+          </div>
+          ${message ? `
+          <div style="background: #FEF3C7; border-left: 4px solid #F59E0B; padding: 15px; margin: 20px 0;">
+            <p style="margin: 0; font-style: italic;"><strong>Message from seller:</strong></p>
+            <p style="margin: 10px 0 0 0;">"${message}"</p>
+          </div>
+          ` : ''}
+          <p>Under Texas law, sellers are required to disclose known material defects of the property. Please review this disclosure carefully.</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${viewUrl}" style="display: inline-block; background: #3B82F6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 5px;">View Disclosure</a>
+            ${pdfUrl ? `<a href="${pdfUrl}" style="display: inline-block; background: #6B7280; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 5px;">Download PDF</a>` : ''}
+          </div>
+        </div>
+        <div style="padding: 20px; text-align: center; color: #6B7280; font-size: 12px;">
+          <p>Move-it Inc. | Texas Real Estate Platform</p>
+          <p style="color: #9CA3AF;">This disclosure was shared via Move-it. Please contact the seller directly with any questions.</p>
+        </div>
+      </div>
+    `;
+
+    return this.send(to, subject, text, html);
   },
 };
 

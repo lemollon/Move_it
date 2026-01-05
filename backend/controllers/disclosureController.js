@@ -1,4 +1,6 @@
 import { SellerDisclosure, FSBOChecklist, Property, User } from '../models/index.js';
+import { pdfService } from '../services/pdfService.js';
+import { emailService } from '../services/emailService.js';
 
 // =====================================================
 // SELLER DISCLOSURE CONTROLLERS
@@ -804,30 +806,109 @@ export const generatePDF = async (req, res) => {
 
     // Check access - seller or buyer in transaction can view
     if (disclosure.seller_id !== userId) {
-      // TODO: Check if buyer in transaction
-      // For now, allow any authenticated user to view completed disclosures
       if (disclosure.status !== 'completed' && disclosure.status !== 'signed') {
         return res.status(403).json({ message: 'Access denied' });
       }
     }
 
-    // Generate PDF data structure for TXR-1406 format
-    const pdfData = generateDisclosurePDFData(disclosure);
+    // Generate actual PDF
+    const pdfResult = await pdfService.generateDisclosurePDF(
+      disclosure,
+      disclosure.property,
+      disclosure.seller
+    );
 
-    // For now, return the data that would be used to generate PDF
-    // In production, use a library like puppeteer or pdfkit
+    // Update disclosure with PDF URL
+    await disclosure.update({
+      pdf_url: pdfResult.url,
+      pdf_generated_at: new Date(),
+    });
+
     res.json({
-      message: 'PDF data generated',
+      message: 'PDF generated successfully',
       disclosure_id: id,
-      property_address: disclosure.property?.getFullAddress(),
+      property_address: disclosure.property?.getFullAddress?.() || disclosure.property?.address_line1,
       status: disclosure.status,
       completion: disclosure.calculateCompletion(),
       generated_at: new Date().toISOString(),
-      pdf_data: pdfData,
-      // pdf_url would be set after actual PDF generation
+      pdf_url: pdfResult.url,
     });
   } catch (error) {
     console.error('Generate PDF error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Share disclosure with buyer via email
+// @route   POST /api/disclosures/:id/share
+// @access  Private (seller only)
+export const shareDisclosure = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { recipientEmail, recipientName, message } = req.body;
+    const sellerId = req.user.id;
+
+    if (!recipientEmail) {
+      return res.status(400).json({ message: 'Recipient email is required' });
+    }
+
+    const disclosure = await SellerDisclosure.findOne({
+      where: { id, seller_id: sellerId },
+      include: [
+        { model: Property, as: 'property' },
+        { model: User, as: 'seller', attributes: ['first_name', 'last_name', 'email'] }
+      ]
+    });
+
+    if (!disclosure) {
+      return res.status(404).json({ message: 'Disclosure not found' });
+    }
+
+    // Check if disclosure is ready to share
+    if (disclosure.status === 'draft') {
+      return res.status(400).json({
+        message: 'Please complete more of the disclosure before sharing',
+        completion: disclosure.calculateCompletion(),
+      });
+    }
+
+    // Generate PDF if not already generated
+    let pdfUrl = disclosure.pdf_url;
+    if (!pdfUrl) {
+      const pdfResult = await pdfService.generateDisclosurePDF(
+        disclosure,
+        disclosure.property,
+        disclosure.seller
+      );
+      pdfUrl = pdfResult.url;
+      await disclosure.update({
+        pdf_url: pdfUrl,
+        pdf_generated_at: new Date(),
+      });
+    }
+
+    // Generate view link
+    const viewUrl = `${process.env.FRONTEND_URL || 'https://move-it.com'}/disclosure/view/${id}`;
+
+    // Send email notification
+    await emailService.sendDisclosureShared({
+      to: recipientEmail,
+      recipientName: recipientName || 'Buyer',
+      sellerName: `${disclosure.seller?.first_name || ''} ${disclosure.seller?.last_name || ''}`.trim() || 'Seller',
+      propertyAddress: disclosure.property?.getFullAddress?.() || disclosure.property?.address_line1 || 'Property',
+      viewUrl,
+      pdfUrl,
+      message,
+    });
+
+    res.json({
+      message: 'Disclosure shared successfully',
+      sentTo: recipientEmail,
+      viewUrl,
+      pdfUrl,
+    });
+  } catch (error) {
+    console.error('Share disclosure error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };

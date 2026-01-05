@@ -1,6 +1,7 @@
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { AppError } from '../middleware/errorHandler.js';
 import User from '../models/User.js';
+import { emailService } from '../services/emailService.js';
 
 // @desc    Register user
 // @route   POST /api/auth/register
@@ -160,5 +161,93 @@ export const updatePassword = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     token,
+  });
+});
+
+// @desc    Forgot password - send reset email
+// @route   POST /api/auth/forgotpassword
+// @access  Public
+export const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    throw new AppError('Please provide an email address', 400);
+  }
+
+  const user = await User.findOne({ where: { email } });
+
+  if (!user) {
+    // Don't reveal if email exists - security best practice
+    res.json({
+      success: true,
+      message: 'If an account with that email exists, a password reset link has been sent.',
+    });
+    return;
+  }
+
+  // Generate reset token
+  const resetToken = user.generatePasswordResetToken();
+  await user.save();
+
+  try {
+    // Send email
+    await emailService.sendPasswordResetEmail(user, resetToken);
+
+    res.json({
+      success: true,
+      message: 'If an account with that email exists, a password reset link has been sent.',
+    });
+  } catch (err) {
+    // Clear reset token on email failure
+    user.clearPasswordResetToken();
+    await user.save();
+
+    console.error('Password reset email error:', err);
+    throw new AppError('Failed to send password reset email. Please try again later.', 500);
+  }
+});
+
+// @desc    Reset password with token
+// @route   POST /api/auth/resetpassword
+// @access  Public
+export const resetPassword = asyncHandler(async (req, res) => {
+  const { token, password } = req.body;
+
+  if (!token || !password) {
+    throw new AppError('Please provide token and new password', 400);
+  }
+
+  if (password.length < 6) {
+    throw new AppError('Password must be at least 6 characters', 400);
+  }
+
+  // Find user by reset token
+  const user = await User.findByResetToken(token);
+
+  if (!user) {
+    throw new AppError('Invalid or expired reset token', 400);
+  }
+
+  // Update password and clear reset token
+  user.password_hash = password;
+  user.clearPasswordResetToken();
+  await user.save();
+
+  // Send confirmation email
+  try {
+    await emailService.sendPasswordResetSuccess(user);
+  } catch (err) {
+    // Non-critical - log but don't fail
+    console.error('Password reset success email error:', err);
+  }
+
+  // Generate new auth token
+  const authToken = user.getSignedJwtToken();
+
+  res.json({
+    success: true,
+    message: 'Password has been reset successfully',
+    token: authToken,
+    user: user.toSafeObject(),
   });
 });

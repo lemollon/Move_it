@@ -3,6 +3,7 @@ import {
   Paperclip, Upload, X, FileText, File, Image,
   Loader2, AlertCircle, Check, Download, Trash2
 } from 'lucide-react';
+import { useDocumentUpload } from '../../../hooks/useFileUpload';
 
 const ATTACHMENT_TYPES = [
   { id: 'inspection_report', label: 'Inspection Report', icon: FileText },
@@ -68,26 +69,37 @@ const AttachmentCard = ({ attachment, onRemove, isRemoving }) => {
   );
 };
 
-const AttachmentUploader = ({ onUpload, isUploading }) => {
+const AttachmentUploader = ({ onUpload, isUploading, progress = 0, disclosureId }) => {
   const [selectedType, setSelectedType] = useState('inspection_report');
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef(null);
+
+  const { uploadFile, uploading: hookUploading, progress: hookProgress, error } = useDocumentUpload();
 
   const handleFileSelect = async (files) => {
     if (files.length === 0) return;
 
     const file = files[0];
-    // In production, upload to S3 first, then call onUpload with the URL
-    // For now, we'll simulate with a placeholder
-    const attachment = {
-      name: file.name,
-      type: selectedType,
-      size: file.size,
-      // url would come from S3 upload
-      url: URL.createObjectURL(file), // Temporary for preview
-    };
 
-    await onUpload(attachment);
+    // Upload to server (Cloudinary or local)
+    const result = await uploadFile(file, {
+      document_type: selectedType,
+      folder: 'disclosures',
+    });
+
+    if (result) {
+      // Build attachment data from upload result
+      const attachment = {
+        name: file.name,
+        type: selectedType,
+        size: file.size,
+        url: result.url,
+        publicId: result.publicId,
+      };
+
+      await onUpload(attachment);
+    }
+
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -98,6 +110,9 @@ const AttachmentUploader = ({ onUpload, isUploading }) => {
     setDragOver(false);
     handleFileSelect(e.dataTransfer.files);
   };
+
+  const currentlyUploading = isUploading || hookUploading;
+  const currentProgress = hookProgress || progress;
 
   return (
     <div className="space-y-3">
@@ -114,11 +129,17 @@ const AttachmentUploader = ({ onUpload, isUploading }) => {
         </select>
       </div>
 
+      {error && (
+        <div className="p-2 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          {error}
+        </div>
+      )}
+
       <div
         className={`
           relative border-2 border-dashed rounded-xl p-6 text-center transition-colors
           ${dragOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}
-          ${isUploading ? 'pointer-events-none opacity-60' : 'cursor-pointer'}
+          ${currentlyUploading ? 'pointer-events-none opacity-60' : 'cursor-pointer'}
         `}
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
@@ -131,13 +152,23 @@ const AttachmentUploader = ({ onUpload, isUploading }) => {
           className="hidden"
           accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
           onChange={(e) => handleFileSelect(e.target.files)}
-          disabled={isUploading}
+          disabled={currentlyUploading}
         />
 
-        {isUploading ? (
+        {currentlyUploading ? (
           <div className="flex flex-col items-center gap-2">
             <Loader2 size={32} className="text-blue-600 animate-spin" />
-            <p className="text-sm text-gray-600">Uploading...</p>
+            <p className="text-sm text-gray-600">
+              Uploading...{currentProgress > 0 && ` ${currentProgress}%`}
+            </p>
+            {currentProgress > 0 && (
+              <div className="w-full max-w-xs bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-blue-600 h-2 rounded-full transition-all"
+                  style={{ width: `${currentProgress}%` }}
+                />
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
