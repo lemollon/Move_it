@@ -127,6 +127,38 @@ export const useDisclosureForm = (propertyId) => {
     loadDisclosure();
   }, [loadDisclosure]);
 
+  // Persist current section to localStorage for resume
+  useEffect(() => {
+    if (propertyId && currentSection) {
+      const key = `disclosure_progress_${propertyId}`;
+      localStorage.setItem(key, JSON.stringify({
+        section: currentSection,
+        timestamp: Date.now(),
+      }));
+    }
+  }, [propertyId, currentSection]);
+
+  // Load persisted section on mount
+  useEffect(() => {
+    if (propertyId) {
+      const key = `disclosure_progress_${propertyId}`;
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        try {
+          const { section, timestamp } = JSON.parse(saved);
+          // Only restore if saved within last 24 hours
+          if (Date.now() - timestamp < 24 * 60 * 60 * 1000) {
+            setCurrentSection(section);
+          } else {
+            localStorage.removeItem(key);
+          }
+        } catch (e) {
+          localStorage.removeItem(key);
+        }
+      }
+    }
+  }, [propertyId]);
+
   // Update section data and trigger auto-save
   const updateSectionData = useCallback((section, field, value) => {
     setSectionData(prev => {

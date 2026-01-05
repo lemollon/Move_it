@@ -6,10 +6,14 @@ import {
   createOrGetDisclosure,
   autoSaveSection,
   updateDisclosure,
+  validateDisclosure,
   completeDisclosure,
   signDisclosureSeller,
   signDisclosureBuyer,
   getSellerDisclosures,
+  addAttachment,
+  removeAttachment,
+  generatePDF,
   // FSBO Checklist
   getFSBOChecklist,
   createFSBOChecklist,
@@ -39,6 +43,9 @@ router.patch('/:id/section/:sectionNumber', protect, autoSaveSection);
 // Update full disclosure
 router.put('/:id', protect, updateDisclosure);
 
+// Validate disclosure before completion
+router.post('/:id/validate', protect, validateDisclosure);
+
 // Mark disclosure as completed
 router.post('/:id/complete', protect, completeDisclosure);
 
@@ -47,6 +54,14 @@ router.post('/:id/sign/seller', protect, signDisclosureSeller);
 
 // Sign disclosure (buyer acknowledgment)
 router.post('/:id/sign/buyer', protect, signDisclosureBuyer);
+
+// Attachments
+router.post('/:id/attachments', protect, addAttachment);
+router.delete('/:id/attachments/:attachmentId', protect, removeAttachment);
+
+// PDF Generation
+router.post('/:id/generate-pdf', protect, generatePDF);
+router.get('/:id/pdf', protect, generatePDF);
 
 // =====================================================
 // FSBO CHECKLIST ROUTES

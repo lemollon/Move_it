@@ -217,10 +217,19 @@ export const disclosuresAPI = {
   autoSaveSection: (id, sectionNumber, data) =>
     api.patch(`/disclosures/${id}/section/${sectionNumber}`, { data }),
   update: (id, data) => api.put(`/disclosures/${id}`, data),
-  complete: (id) => api.post(`/disclosures/${id}/complete`),
+  validate: (id) => api.post(`/disclosures/${id}/validate`),
+  complete: (id, force = false) => api.post(`/disclosures/${id}/complete`, { force }),
   signSeller: (id, signatureData) => api.post(`/disclosures/${id}/sign/seller`, signatureData),
   signBuyer: (id, signatureData) => api.post(`/disclosures/${id}/sign/buyer`, signatureData),
   getSellerDisclosures: () => api.get('/disclosures/seller'),
+
+  // Attachments
+  addAttachment: (id, attachmentData) => api.post(`/disclosures/${id}/attachments`, attachmentData),
+  removeAttachment: (id, attachmentId) => api.delete(`/disclosures/${id}/attachments/${attachmentId}`),
+
+  // PDF Generation
+  generatePDF: (id) => api.post(`/disclosures/${id}/generate-pdf`),
+  getPDF: (id) => api.get(`/disclosures/${id}/pdf`),
 
   // FSBO Checklist
   getFSBOChecklist: (propertyId = null) =>

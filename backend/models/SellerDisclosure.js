@@ -206,6 +206,13 @@ const SellerDisclosure = sequelize.define('SellerDisclosure', {
     defaultValue: null,
   },
 
+  // Attachments (inspection reports, HOA docs, etc.)
+  attachments: {
+    type: DataTypes.JSONB,
+    defaultValue: [],
+    // Structure: [{ id: '', name: '', type: '', url: '', size: 0, uploaded_at: '' }]
+  },
+
   // PDF Export
   pdf_url: {
     type: DataTypes.STRING(500),
@@ -272,6 +279,105 @@ SellerDisclosure.prototype.getSectionsSummary = function() {
     section12: { name: 'Unremediated Claims', completed: this.section12_unremediated_claims !== null },
     section13: { name: 'Smoke Detectors', completed: this.section13_smoke_detectors !== null },
   };
+};
+
+// Validate required fields for completion
+SellerDisclosure.prototype.validateForCompletion = function() {
+  const errors = [];
+  const warnings = [];
+
+  // Section 1: Required - roof info
+  const roofInfo = this.section1_roof_info || {};
+  if (!roofInfo.built_before_1978) {
+    errors.push({ section: 1, field: 'built_before_1978', message: 'Please indicate if property was built before 1978' });
+  }
+  if (!roofInfo.roof_type) {
+    errors.push({ section: 1, field: 'roof_type', message: 'Roof type is required' });
+  }
+  if (!roofInfo.roof_age) {
+    errors.push({ section: 1, field: 'roof_age', message: 'Roof age is required' });
+  }
+
+  // Section 1: Required - water supply
+  const waterSupply = this.section1_water_supply || {};
+  if (!waterSupply.provider) {
+    errors.push({ section: 1, field: 'water_provider', message: 'Water supply provider is required' });
+  }
+
+  // Section 4: Required
+  if (this.section4_additional_repairs === null) {
+    errors.push({ section: 4, field: 'additional_repairs', message: 'Please indicate if additional repairs are needed' });
+  }
+
+  // Section 5: Required flood questions
+  const floodData = this.section5_flood_data || {};
+  if (floodData.flood_insurance_present === undefined) {
+    errors.push({ section: 5, field: 'flood_insurance', message: 'Please indicate if flood insurance is present' });
+  }
+
+  // Section 6: Required
+  if (this.section6_flood_claim === null) {
+    errors.push({ section: 6, field: 'flood_claim', message: 'Please indicate if flood claims were filed' });
+  }
+
+  // Section 7: Required
+  if (this.section7_fema_assistance === null) {
+    errors.push({ section: 7, field: 'fema_assistance', message: 'Please indicate if FEMA/SBA assistance was received' });
+  }
+
+  // Section 9: Required
+  if (this.section9_has_reports === null) {
+    errors.push({ section: 9, field: 'has_reports', message: 'Please indicate if inspection reports exist' });
+  }
+
+  // Section 11: Required
+  if (this.section11_insurance_claims === null) {
+    errors.push({ section: 11, field: 'insurance_claims', message: 'Please indicate if insurance claims were filed' });
+  }
+
+  // Section 12: Required
+  if (this.section12_unremediated_claims === null) {
+    errors.push({ section: 12, field: 'unremediated_claims', message: 'Please indicate if there are unremediated claims' });
+  }
+
+  // Section 13: Required
+  if (!this.section13_smoke_detectors) {
+    errors.push({ section: 13, field: 'smoke_detectors', message: 'Please indicate smoke detector status' });
+  }
+
+  // Warnings (not blocking but recommended)
+  if (Object.keys(this.section1_property_items || {}).length < 5) {
+    warnings.push({ section: 1, message: 'Consider reviewing more property items' });
+  }
+
+  if (!this.utility_providers || Object.keys(this.utility_providers).length === 0) {
+    warnings.push({ section: 'utilities', message: 'Utility provider information is recommended' });
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
+    errorCount: errors.length,
+    warningCount: warnings.length,
+  };
+};
+
+// Get fields that need attention
+SellerDisclosure.prototype.getIncompleteFields = function() {
+  const incomplete = [];
+  const summary = this.getSectionsSummary();
+
+  Object.entries(summary).forEach(([key, value]) => {
+    if (!value.completed) {
+      incomplete.push({
+        section: key,
+        name: value.name,
+      });
+    }
+  });
+
+  return incomplete;
 };
 
 export default SellerDisclosure;

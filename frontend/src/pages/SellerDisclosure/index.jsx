@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, FileText, Loader2 } from 'lucide-react';
+import { ArrowLeft, FileText, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useDisclosureForm } from '../../hooks/useDisclosureForm';
+import { useSwipe } from '../../hooks/useSwipe';
 import { SectionNav, OverallProgress, MobileStepper, NavigationButtons } from './components/ProgressBar';
 
 // Import all sections
@@ -67,17 +68,40 @@ const SellerDisclosure = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentSection]);
 
-  const handlePrevious = () => {
+  const handlePrevious = useCallback(() => {
     if (currentSection > 1) {
       goToSection(currentSection - 1);
     }
-  };
+  }, [currentSection, goToSection]);
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     if (currentSection < SECTIONS.length) {
       goToSection(currentSection + 1);
     }
-  };
+  }, [currentSection, goToSection]);
+
+  // Swipe handlers for mobile navigation
+  const swipeHandlers = useSwipe({
+    onSwipeLeft: handleNext,
+    onSwipeRight: handlePrevious,
+    threshold: 75, // Higher threshold to avoid accidental swipes
+  });
+
+  // Show swipe hint on mobile
+  const [showSwipeHint, setShowSwipeHint] = useState(true);
+  useEffect(() => {
+    const hasSeenHint = localStorage.getItem('disclosure_swipe_hint_seen');
+    if (hasSeenHint) {
+      setShowSwipeHint(false);
+    } else {
+      // Hide hint after 5 seconds
+      const timer = setTimeout(() => {
+        setShowSwipeHint(false);
+        localStorage.setItem('disclosure_swipe_hint_seen', 'true');
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   const handleComplete = async () => {
     try {
@@ -204,7 +228,7 @@ const SellerDisclosure = () => {
           </aside>
 
           {/* Main Content */}
-          <main className="flex-1 min-w-0">
+          <main className="flex-1 min-w-0" {...swipeHandlers}>
             {/* Progress bar on mobile */}
             <div className="md:hidden mb-6">
               <OverallProgress
@@ -215,7 +239,16 @@ const SellerDisclosure = () => {
               />
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-200 p-6 md:p-8">
+            {/* Swipe hint for mobile */}
+            {showSwipeHint && (
+              <div className="md:hidden mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-center gap-2 text-blue-700 text-sm animate-pulse">
+                <ChevronLeft size={16} />
+                <span>Swipe left/right to navigate sections</span>
+                <ChevronRight size={16} />
+              </div>
+            )}
+
+            <div className="bg-white rounded-xl border border-gray-200 p-6 md:p-8 touch-pan-y">
               {CurrentSectionComponent && (
                 currentSection === 15 ? (
                   <SectionSignatures

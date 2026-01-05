@@ -12,6 +12,7 @@ import TransactionCenter from '@/pages/TransactionCenter';
 import ContractInfoCollector from '@/pages/ContractInfoCollector';
 import SellerDisclosure from '@/pages/SellerDisclosure';
 import FSBOChecklist from '@/pages/FSBOChecklist';
+import BuyerDisclosureView from '@/pages/BuyerDisclosureView';
 
 // Protected Route Component
 import ProtectedRoute from '@/components/shared/ProtectedRoute';
@@ -92,6 +93,16 @@ function App() {
             element={
               <ProtectedRoute requiredRole="seller">
                 <FSBOChecklist />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Buyer Disclosure View - accessible by buyers */}
+          <Route
+            path="/disclosure/view/:disclosureId"
+            element={
+              <ProtectedRoute requiredRole="buyer">
+                <BuyerDisclosureView />
               </ProtectedRoute>
             }
           />
