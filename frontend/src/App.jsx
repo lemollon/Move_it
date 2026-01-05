@@ -10,6 +10,8 @@ import SellerDashboard from '@/pages/SellerDashboard';
 import VendorDashboard from '@/pages/VendorDashboard';
 import TransactionCenter from '@/pages/TransactionCenter';
 import ContractInfoCollector from '@/pages/ContractInfoCollector';
+import SellerDisclosure from '@/pages/SellerDisclosure';
+import FSBOChecklist from '@/pages/FSBOChecklist';
 
 // Protected Route Component
 import ProtectedRoute from '@/components/shared/ProtectedRoute';
@@ -70,6 +72,26 @@ function App() {
             element={
               <ProtectedRoute>
                 <ContractInfoCollector />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Seller's Disclosure */}
+          <Route
+            path="/disclosure/:propertyId"
+            element={
+              <ProtectedRoute requiredRole="seller">
+                <SellerDisclosure />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* FSBO Checklist */}
+          <Route
+            path="/fsbo-checklist"
+            element={
+              <ProtectedRoute requiredRole="seller">
+                <FSBOChecklist />
               </ProtectedRoute>
             }
           />

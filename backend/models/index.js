@@ -8,6 +8,8 @@ import Document from './Document.js';
 import Message from './Message.js';
 import Favorite from './Favorite.js';
 import Notification from './Notification.js';
+import SellerDisclosure from './SellerDisclosure.js';
+import FSBOChecklist from './FSBOChecklist.js';
 
 // =====================================================
 // ASSOCIATIONS
@@ -62,6 +64,18 @@ Notification.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 Notification.belongsTo(Transaction, { foreignKey: 'transaction_id', as: 'transaction' });
 Notification.belongsTo(Property, { foreignKey: 'property_id', as: 'property' });
 
+// SellerDisclosure associations
+SellerDisclosure.belongsTo(Property, { foreignKey: 'property_id', as: 'property' });
+SellerDisclosure.belongsTo(User, { foreignKey: 'seller_id', as: 'seller' });
+Property.hasOne(SellerDisclosure, { foreignKey: 'property_id', as: 'disclosure' });
+User.hasMany(SellerDisclosure, { foreignKey: 'seller_id', as: 'disclosures' });
+
+// FSBOChecklist associations
+FSBOChecklist.belongsTo(Property, { foreignKey: 'property_id', as: 'property' });
+FSBOChecklist.belongsTo(User, { foreignKey: 'seller_id', as: 'seller' });
+Property.hasOne(FSBOChecklist, { foreignKey: 'property_id', as: 'fsboChecklist' });
+User.hasMany(FSBOChecklist, { foreignKey: 'seller_id', as: 'fsboChecklists' });
+
 // =====================================================
 // SYNC FUNCTION
 // =====================================================
@@ -87,5 +101,7 @@ export {
   Message,
   Favorite,
   Notification,
+  SellerDisclosure,
+  FSBOChecklist,
   syncDatabase,
 };
