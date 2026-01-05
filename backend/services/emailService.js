@@ -415,6 +415,44 @@ export const emailService = {
     const template = templates.passwordResetSuccess(user);
     return this.send(user.email, template.subject, template.text, template.html);
   },
+
+  // Share disclosure with buyer
+  async sendDisclosureShared({ to, recipientName, sellerName, propertyAddress, viewUrl, pdfUrl, message }) {
+    const subject = `Seller's Disclosure: ${propertyAddress}`;
+    const text = `Hi ${recipientName},\n\n${sellerName} has shared the Seller's Disclosure Notice for ${propertyAddress} with you.\n\n${message ? `Message from seller: "${message}"\n\n` : ''}You can view the disclosure online at: ${viewUrl}\n\n${pdfUrl ? `Download PDF: ${pdfUrl}\n\n` : ''}Please review this disclosure carefully. Under Texas law, sellers are required to disclose known material defects of the property.\n\nBest,\nThe Move-it Team`;
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%); padding: 30px; text-align: center;">
+          <h1 style="color: white; margin: 0;">📋 Seller's Disclosure</h1>
+        </div>
+        <div style="padding: 30px; background: #f9fafb;">
+          <p>Hi ${recipientName},</p>
+          <p><strong>${sellerName}</strong> has shared the Seller's Disclosure Notice with you for:</p>
+          <div style="background: white; border: 1px solid #E5E7EB; border-radius: 8px; padding: 20px; margin: 20px 0;">
+            <p style="font-weight: bold; font-size: 18px; margin: 0;">${propertyAddress}</p>
+          </div>
+          ${message ? `
+          <div style="background: #FEF3C7; border-left: 4px solid #F59E0B; padding: 15px; margin: 20px 0;">
+            <p style="margin: 0; font-style: italic;"><strong>Message from seller:</strong></p>
+            <p style="margin: 10px 0 0 0;">"${message}"</p>
+          </div>
+          ` : ''}
+          <p>Under Texas law, sellers are required to disclose known material defects of the property. Please review this disclosure carefully.</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${viewUrl}" style="display: inline-block; background: #3B82F6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 5px;">View Disclosure</a>
+            ${pdfUrl ? `<a href="${pdfUrl}" style="display: inline-block; background: #6B7280; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 5px;">Download PDF</a>` : ''}
+          </div>
+        </div>
+        <div style="padding: 20px; text-align: center; color: #6B7280; font-size: 12px;">
+          <p>Move-it Inc. | Texas Real Estate Platform</p>
+          <p style="color: #9CA3AF;">This disclosure was shared via Move-it. Please contact the seller directly with any questions.</p>
+        </div>
+      </div>
+    `;
+
+    return this.send(to, subject, text, html);
+  },
 };
 
 export default emailService;

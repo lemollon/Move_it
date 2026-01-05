@@ -14,6 +14,7 @@ import {
   addAttachment,
   removeAttachment,
   generatePDF,
+  shareDisclosure,
   // FSBO Checklist
   getFSBOChecklist,
   createFSBOChecklist,
@@ -62,6 +63,9 @@ router.delete('/:id/attachments/:attachmentId', protect, removeAttachment);
 // PDF Generation
 router.post('/:id/generate-pdf', protect, generatePDF);
 router.get('/:id/pdf', protect, generatePDF);
+
+// Share disclosure with buyer via email
+router.post('/:id/share', protect, shareDisclosure);
 
 // =====================================================
 // FSBO CHECKLIST ROUTES
