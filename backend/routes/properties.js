@@ -2,13 +2,83 @@ import express from 'express';
 import { protect, authorize } from '../middleware/auth.js';
 import { Property, User, Offer, Favorite } from '../models/index.js';
 import { Op } from 'sequelize';
+import { propertyValidation, uuidParam } from '../middleware/validation.js';
+import { logger } from '../utils/logger.js';
 
 const router = express.Router();
+
+// =====================================================
+// SPECIFIC ROUTES (must come before parameterized routes)
+// =====================================================
+
+// @route   GET /api/properties/seller/my-listings
+// @desc    Get current seller's properties
+// @access  Private (Seller)
+router.get('/seller/my-listings', protect, authorize('seller', 'admin'), async (req, res, next) => {
+  try {
+    const properties = await Property.findAll({
+      where: { seller_id: req.user.id },
+      include: [
+        {
+          model: Offer,
+          as: 'offers',
+          include: [
+            {
+              model: User,
+              as: 'buyer',
+              attributes: ['id', 'first_name', 'last_name', 'email'],
+            },
+          ],
+        },
+      ],
+      order: [['created_at', 'DESC']],
+    });
+
+    res.json(properties);
+  } catch (error) {
+    logger.error('Error fetching seller properties:', { error: error.message, userId: req.user.id });
+    next(error);
+  }
+});
+
+// @route   GET /api/properties/favorites/my-favorites
+// @desc    Get user's favorite properties
+// @access  Private
+router.get('/favorites/my-favorites', protect, async (req, res, next) => {
+  try {
+    const favorites = await Favorite.findAll({
+      where: { user_id: req.user.id },
+      include: [
+        {
+          model: Property,
+          as: 'property',
+          include: [
+            {
+              model: User,
+              as: 'seller',
+              attributes: ['id', 'first_name', 'last_name'],
+            },
+          ],
+        },
+      ],
+      order: [['created_at', 'DESC']],
+    });
+
+    res.json(favorites.map(f => f.property));
+  } catch (error) {
+    logger.error('Error fetching favorites:', { error: error.message, userId: req.user.id });
+    next(error);
+  }
+});
+
+// =====================================================
+// GENERAL ROUTES
+// =====================================================
 
 // @route   GET /api/properties
 // @desc    Get all properties with filtering
 // @access  Public
-router.get('/', async (req, res) => {
+router.get('/', propertyValidation.list, async (req, res, next) => {
   try {
     const {
       city,
@@ -27,6 +97,11 @@ router.get('/', async (req, res) => {
     } = req.query;
 
     const where = {};
+
+    // Validate sort field to prevent SQL injection
+    const allowedSortFields = ['created_at', 'list_price', 'bedrooms', 'bathrooms', 'sqft'];
+    const safeSort = allowedSortFields.includes(sort) ? sort : 'created_at';
+    const safeOrder = ['ASC', 'DESC'].includes(order.toUpperCase()) ? order.toUpperCase() : 'DESC';
 
     if (status) where.status = status;
     if (city) where.city = { [Op.iLike]: `%${city}%` };
@@ -47,7 +122,10 @@ router.get('/', async (req, res) => {
       ];
     }
 
-    const offset = (parseInt(page) - 1) * parseInt(limit);
+    // Enforce pagination limits
+    const pageNum = Math.max(1, Math.min(1000, parseInt(page) || 1));
+    const limitNum = Math.max(1, Math.min(100, parseInt(limit) || 20));
+    const offset = (pageNum - 1) * limitNum;
 
     const { count, rows: properties } = await Property.findAndCountAll({
       where,
@@ -58,8 +136,8 @@ router.get('/', async (req, res) => {
           attributes: ['id', 'first_name', 'last_name', 'email', 'phone'],
         },
       ],
-      order: [[sort, order.toUpperCase()]],
-      limit: parseInt(limit),
+      order: [[safeSort, safeOrder]],
+      limit: limitNum,
       offset,
     });
 
@@ -67,21 +145,55 @@ router.get('/', async (req, res) => {
       properties,
       pagination: {
         total: count,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        pages: Math.ceil(count / parseInt(limit)),
+        page: pageNum,
+        limit: limitNum,
+        pages: Math.ceil(count / limitNum),
       },
     });
   } catch (error) {
-    console.error('Error fetching properties:', error);
-    res.status(500).json({ message: 'Server error fetching properties' });
+    logger.error('Error fetching properties:', { error: error.message });
+    next(error);
   }
 });
+
+// @route   POST /api/properties
+// @desc    Create a new property listing
+// @access  Private (Seller only)
+router.post('/', protect, authorize('seller', 'admin'), propertyValidation.create, async (req, res, next) => {
+  try {
+    const propertyData = {
+      ...req.body,
+      seller_id: req.user.id,
+      status: 'active',
+    };
+
+    const property = await Property.create(propertyData);
+
+    const propertyWithSeller = await Property.findByPk(property.id, {
+      include: [
+        {
+          model: User,
+          as: 'seller',
+          attributes: ['id', 'first_name', 'last_name', 'email', 'phone'],
+        },
+      ],
+    });
+
+    res.status(201).json(propertyWithSeller);
+  } catch (error) {
+    logger.error('Error creating property:', { error: error.message, userId: req.user.id });
+    next(error);
+  }
+});
+
+// =====================================================
+// PARAMETERIZED ROUTES (must come after specific routes)
+// =====================================================
 
 // @route   GET /api/properties/:id
 // @desc    Get single property by ID
 // @access  Public
-router.get('/:id', async (req, res) => {
+router.get('/:id', propertyValidation.getById, async (req, res, next) => {
   try {
     const property = await Property.findByPk(req.params.id, {
       include: [
@@ -105,7 +217,7 @@ router.get('/:id', async (req, res) => {
     });
 
     if (!property) {
-      return res.status(404).json({ message: 'Property not found' });
+      return res.status(404).json({ success: false, error: 'Property not found' });
     }
 
     // Increment view count
@@ -113,61 +225,25 @@ router.get('/:id', async (req, res) => {
 
     res.json(property);
   } catch (error) {
-    console.error('Error fetching property:', error);
-    res.status(500).json({ message: 'Server error fetching property' });
-  }
-});
-
-// @route   POST /api/properties
-// @desc    Create a new property listing
-// @access  Private (Seller only)
-router.post('/', protect, authorize('seller', 'admin'), async (req, res) => {
-  try {
-    const propertyData = {
-      ...req.body,
-      seller_id: req.user.id,
-      status: 'active',
-    };
-
-    const property = await Property.create(propertyData);
-
-    const propertyWithSeller = await Property.findByPk(property.id, {
-      include: [
-        {
-          model: User,
-          as: 'seller',
-          attributes: ['id', 'first_name', 'last_name', 'email', 'phone'],
-        },
-      ],
-    });
-
-    res.status(201).json(propertyWithSeller);
-  } catch (error) {
-    console.error('Error creating property:', error);
-    if (error.name === 'SequelizeValidationError') {
-      return res.status(400).json({
-        message: 'Validation error',
-        errors: error.errors.map(e => e.message)
-      });
-    }
-    res.status(500).json({ message: 'Server error creating property' });
+    logger.error('Error fetching property:', { error: error.message, propertyId: req.params.id });
+    next(error);
   }
 });
 
 // @route   PUT /api/properties/:id
 // @desc    Update a property
 // @access  Private (Owner or Admin)
-router.put('/:id', protect, async (req, res) => {
+router.put('/:id', protect, propertyValidation.update, async (req, res, next) => {
   try {
     const property = await Property.findByPk(req.params.id);
 
     if (!property) {
-      return res.status(404).json({ message: 'Property not found' });
+      return res.status(404).json({ success: false, error: 'Property not found' });
     }
 
     // Check ownership
     if (property.seller_id !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Not authorized to update this property' });
+      return res.status(403).json({ success: false, error: 'Not authorized to update this property' });
     }
 
     // Don't allow changing seller_id
@@ -187,75 +263,45 @@ router.put('/:id', protect, async (req, res) => {
 
     res.json(updatedProperty);
   } catch (error) {
-    console.error('Error updating property:', error);
-    res.status(500).json({ message: 'Server error updating property' });
+    logger.error('Error updating property:', { error: error.message, propertyId: req.params.id });
+    next(error);
   }
 });
 
 // @route   DELETE /api/properties/:id
 // @desc    Delete a property
 // @access  Private (Owner or Admin)
-router.delete('/:id', protect, async (req, res) => {
+router.delete('/:id', protect, uuidParam('id'), async (req, res, next) => {
   try {
     const property = await Property.findByPk(req.params.id);
 
     if (!property) {
-      return res.status(404).json({ message: 'Property not found' });
+      return res.status(404).json({ success: false, error: 'Property not found' });
     }
 
     // Check ownership
     if (property.seller_id !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Not authorized to delete this property' });
+      return res.status(403).json({ success: false, error: 'Not authorized to delete this property' });
     }
 
     await property.destroy();
 
-    res.json({ message: 'Property deleted successfully' });
+    res.json({ success: true, message: 'Property deleted successfully' });
   } catch (error) {
-    console.error('Error deleting property:', error);
-    res.status(500).json({ message: 'Server error deleting property' });
-  }
-});
-
-// @route   GET /api/properties/seller/my-listings
-// @desc    Get current seller's properties
-// @access  Private (Seller)
-router.get('/seller/my-listings', protect, authorize('seller', 'admin'), async (req, res) => {
-  try {
-    const properties = await Property.findAll({
-      where: { seller_id: req.user.id },
-      include: [
-        {
-          model: Offer,
-          as: 'offers',
-          include: [
-            {
-              model: User,
-              as: 'buyer',
-              attributes: ['id', 'first_name', 'last_name', 'email'],
-            },
-          ],
-        },
-      ],
-      order: [['created_at', 'DESC']],
-    });
-
-    res.json(properties);
-  } catch (error) {
-    console.error('Error fetching seller properties:', error);
-    res.status(500).json({ message: 'Server error fetching properties' });
+    logger.error('Error deleting property:', { error: error.message, propertyId: req.params.id });
+    next(error);
   }
 });
 
 // @route   POST /api/properties/:id/favorite
 // @desc    Toggle favorite on a property
 // @access  Private
-router.post('/:id/favorite', protect, async (req, res) => {
+router.post('/:id/favorite', protect, uuidParam('id'), async (req, res, next) => {
   try {
     const property = await Property.findByPk(req.params.id);
 
     if (!property) {
-      return res.status(404).json({ message: 'Property not found' });
+      return res.status(404).json({ success: false, error: 'Property not found' });
     }
 
     const existingFavorite = await Favorite.findOne({
@@ -268,48 +314,18 @@ router.post('/:id/favorite', protect, async (req, res) => {
     if (existingFavorite) {
       await existingFavorite.destroy();
       await property.decrement('favorite_count');
-      res.json({ message: 'Removed from favorites', favorited: false });
+      res.json({ success: true, message: 'Removed from favorites', favorited: false });
     } else {
       await Favorite.create({
         user_id: req.user.id,
         property_id: req.params.id,
       });
       await property.increment('favorite_count');
-      res.json({ message: 'Added to favorites', favorited: true });
+      res.json({ success: true, message: 'Added to favorites', favorited: true });
     }
   } catch (error) {
-    console.error('Error toggling favorite:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// @route   GET /api/properties/favorites/my-favorites
-// @desc    Get user's favorite properties
-// @access  Private
-router.get('/favorites/my-favorites', protect, async (req, res) => {
-  try {
-    const favorites = await Favorite.findAll({
-      where: { user_id: req.user.id },
-      include: [
-        {
-          model: Property,
-          as: 'property',
-          include: [
-            {
-              model: User,
-              as: 'seller',
-              attributes: ['id', 'first_name', 'last_name'],
-            },
-          ],
-        },
-      ],
-      order: [['created_at', 'DESC']],
-    });
-
-    res.json(favorites.map(f => f.property));
-  } catch (error) {
-    console.error('Error fetching favorites:', error);
-    res.status(500).json({ message: 'Server error fetching favorites' });
+    logger.error('Error toggling favorite:', { error: error.message, propertyId: req.params.id });
+    next(error);
   }
 });
 
