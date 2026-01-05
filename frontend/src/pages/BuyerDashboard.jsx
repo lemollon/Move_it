@@ -308,6 +308,7 @@ export default function BuyerDashboard() {
   const sidebarItems = [
     { id: 'search', label: 'Search Homes', icon: Search },
     { id: 'favorites', label: 'Saved Homes', icon: Heart, badge: favorites.length },
+    { id: 'disclosures', label: 'Disclosures', icon: FileText },
     { id: 'offers', label: 'My Offers', icon: FileText, badge: myOffers.filter(o => o.status === 'pending' || o.status === 'countered').length },
     { id: 'messages', label: 'Messages', icon: MessageSquare, badge: 2 },
     { id: 'notifications', label: 'Notifications', icon: Bell, badge: 5 },
@@ -735,6 +736,35 @@ export default function BuyerDashboard() {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Disclosures Tab */}
+        {activeTab === 'disclosures' && (
+          <div className="max-w-7xl mx-auto px-6 py-8">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Seller Disclosures</h1>
+                <p className="text-gray-600 mt-1">View disclosures shared with you by sellers</p>
+              </div>
+              <button
+                onClick={() => navigate('/buyer/disclosures')}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                View All Disclosures
+              </button>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm p-8 text-center">
+              <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">No disclosures yet</h3>
+              <p className="text-gray-600 mb-4">When sellers share their property disclosures with you, they will appear here.</p>
+              <button
+                onClick={() => navigate('/buyer/disclosures')}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Go to Disclosures
+              </button>
             </div>
           </div>
         )}

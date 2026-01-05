@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { SellerDisclosure, FSBOChecklist, Property, User, SharedDisclosure } from '../models/index.js';
 import { pdfService } from '../services/pdfService.js';
 import { emailService } from '../services/emailService.js';
+import { analyticsService } from '../services/analyticsService.js';
 
 // =====================================================
 // SELLER DISCLOSURE CONTROLLERS
@@ -919,6 +920,20 @@ export const shareDisclosure = async (req, res) => {
       viewUrl,
       pdfUrl,
       message,
+    });
+
+    // Track the share event
+    await analyticsService.trackEvent({
+      disclosureId: id,
+      eventType: 'shared',
+      userId: sellerId,
+      metadata: {
+        share_id: sharedDisclosure.id,
+        recipient_email: recipientEmail,
+        recipient_name: recipientName,
+      },
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
     });
 
     res.json({

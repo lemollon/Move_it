@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, FileText, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, FileText, Loader2, ChevronLeft, ChevronRight, Share2, Download } from 'lucide-react';
 import { useDisclosureForm } from '../../hooks/useDisclosureForm';
 import { useSwipe } from '../../hooks/useSwipe';
+import { disclosuresAPI } from '../../services/api';
+import ShareDisclosureModal from '../../components/ShareDisclosureModal';
 import { SectionNav, OverallProgress, MobileStepper, NavigationButtons } from './components/ProgressBar';
 
 // Import all sections
@@ -87,6 +89,24 @@ const SellerDisclosure = () => {
     threshold: 75, // Higher threshold to avoid accidental swipes
   });
 
+  // Share modal state
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [generatingPDF, setGeneratingPDF] = useState(false);
+
+  const handleGeneratePDF = async () => {
+    try {
+      setGeneratingPDF(true);
+      const response = await disclosuresAPI.generatePDF(disclosure.id);
+      if (response.data.pdf_url) {
+        window.open(response.data.pdf_url, '_blank');
+      }
+    } catch (err) {
+      alert('Failed to generate PDF: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setGeneratingPDF(false);
+    }
+  };
+
   // Show swipe hint on mobile
   const [showSwipeHint, setShowSwipeHint] = useState(true);
   useEffect(() => {
@@ -162,6 +182,14 @@ const SellerDisclosure = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Share Modal */}
+      <ShareDisclosureModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        disclosureId={disclosure?.id}
+        propertyAddress={disclosure?.header_data?.property_address || 'Property'}
+      />
+
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4">
@@ -180,7 +208,33 @@ const SellerDisclosure = () => {
                 </p>
               </div>
             </div>
-            <div className="hidden md:flex items-center gap-4">
+            <div className="hidden md:flex items-center gap-3">
+              {/* PDF Download */}
+              <button
+                onClick={handleGeneratePDF}
+                disabled={generatingPDF || completion < 50}
+                className="flex items-center gap-2 px-3 py-1.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg disabled:opacity-50"
+                title={completion < 50 ? 'Complete at least 50% to generate PDF' : 'Generate PDF'}
+              >
+                {generatingPDF ? (
+                  <Loader2 size={18} className="animate-spin" />
+                ) : (
+                  <Download size={18} />
+                )}
+                <span className="text-sm">PDF</span>
+              </button>
+
+              {/* Share Button */}
+              <button
+                onClick={() => setShowShareModal(true)}
+                disabled={disclosure?.status === 'draft' || completion < 50}
+                className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                title={completion < 50 ? 'Complete at least 50% to share' : 'Share with buyer'}
+              >
+                <Share2 size={18} />
+                <span className="text-sm">Share</span>
+              </button>
+
               <span className={`
                 px-3 py-1 rounded-full text-sm font-medium
                 ${disclosure?.status === 'signed'

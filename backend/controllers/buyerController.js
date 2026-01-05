@@ -1,6 +1,7 @@
 import asyncHandler from 'express-async-handler';
 import crypto from 'crypto';
 import { SharedDisclosure, SellerDisclosure, Property, User } from '../models/index.js';
+import { analyticsService } from '../services/analyticsService.js';
 
 /**
  * @desc    Get all disclosures shared with the logged-in buyer
@@ -140,6 +141,20 @@ export const getSharedDisclosure = asyncHandler(async (req, res) => {
 
   await sharedDisclosure.update(updates);
 
+  // Track the view event
+  await analyticsService.trackEvent({
+    disclosureId: sharedDisclosure.disclosure_id,
+    eventType: 'share_viewed',
+    userId: userId,
+    metadata: {
+      share_id: sharedDisclosure.id,
+      view_count: sharedDisclosure.view_count + 1,
+      first_view: !sharedDisclosure.first_viewed_at,
+    },
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+
   const disclosure = sharedDisclosure.disclosure;
 
   res.json({
@@ -245,6 +260,18 @@ export const acknowledgeDisclosure = asyncHandler(async (req, res) => {
     acknowledged_at: new Date(),
   });
 
+  // Track the acknowledge event
+  await analyticsService.trackEvent({
+    disclosureId: sharedDisclosure.disclosure_id,
+    eventType: 'share_acknowledged',
+    userId: userId,
+    metadata: {
+      share_id: sharedDisclosure.id,
+    },
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+
   res.json({
     success: true,
     message: 'Disclosure acknowledged successfully',
@@ -317,6 +344,19 @@ export const signDisclosure = asyncHandler(async (req, res) => {
     await disclosure.update({ buyer2_signature: buyerSignature });
   }
 
+  // Track the sign event
+  await analyticsService.trackEvent({
+    disclosureId: sharedDisclosure.disclosure_id,
+    eventType: 'share_signed',
+    userId: userId,
+    metadata: {
+      share_id: sharedDisclosure.id,
+      printed_name: printedName,
+    },
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+
   res.json({
     success: true,
     message: 'Disclosure signed successfully',
@@ -377,6 +417,21 @@ export const viewDisclosureByToken = asyncHandler(async (req, res) => {
   }
 
   await sharedDisclosure.update(updates);
+
+  // Track the public view event
+  await analyticsService.trackEvent({
+    disclosureId: sharedDisclosure.disclosure_id,
+    eventType: 'share_viewed',
+    userId: null, // Public access, no user
+    metadata: {
+      share_id: sharedDisclosure.id,
+      view_count: sharedDisclosure.view_count + 1,
+      first_view: !sharedDisclosure.first_viewed_at,
+      public_access: true,
+    },
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
 
   const disclosure = sharedDisclosure.disclosure;
 
