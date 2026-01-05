@@ -260,6 +260,12 @@ export const authAPI = {
   // Change password
   changePassword: (currentPassword, newPassword) =>
     api.put('/auth/password', { currentPassword, newPassword }),
+
+  // Forgot password - request reset email
+  forgotPassword: (email) => api.post('/auth/forgotpassword', { email }),
+
+  // Reset password with token
+  resetPassword: (token, password) => api.post('/auth/resetpassword', { token, password }),
 };
 
 export default api;
