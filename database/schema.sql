@@ -185,6 +185,56 @@ CREATE TABLE seller_disclosures (
 CREATE INDEX idx_disclosure_property ON seller_disclosures(property_id);
 
 -- =====================================================
+-- FSBO CHECKLISTS
+-- =====================================================
+
+CREATE TYPE fsbo_status AS ENUM ('not_started', 'in_progress', 'completed');
+
+CREATE TABLE fsbo_checklists (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    property_id UUID REFERENCES properties(id) ON DELETE CASCADE,
+    seller_id UUID REFERENCES users(id) ON DELETE CASCADE,
+
+    -- Overall status
+    status fsbo_status DEFAULT 'not_started',
+    completion_percentage INTEGER DEFAULT 0,
+
+    -- Category 1: Property Details
+    property_details JSONB NOT NULL DEFAULT '{}',
+
+    -- Category 2: HOA (If Applicable)
+    hoa_info JSONB NOT NULL DEFAULT '{}',
+
+    -- Category 3: Ownership & Legal
+    ownership_legal JSONB NOT NULL DEFAULT '{}',
+
+    -- Category 4: Pricing
+    pricing JSONB NOT NULL DEFAULT '{}',
+
+    -- Category 5: Property Condition
+    property_condition JSONB NOT NULL DEFAULT '{}',
+
+    -- Category 6: Photos & Marketing
+    photos_marketing JSONB NOT NULL DEFAULT '{}',
+
+    -- Category 7: Showings
+    showings JSONB NOT NULL DEFAULT '{}',
+
+    -- Category 8: Offers & Closing
+    offers_closing JSONB NOT NULL DEFAULT '{}',
+
+    -- Auto-save tracking
+    last_auto_save TIMESTAMP,
+
+    -- Metadata
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_fsbo_checklist_property ON fsbo_checklists(property_id);
+CREATE INDEX idx_fsbo_checklist_seller ON fsbo_checklists(seller_id);
+
+-- =====================================================
 -- OFFERS
 -- =====================================================
 
@@ -616,3 +666,4 @@ CREATE TRIGGER update_transactions_updated_at BEFORE UPDATE ON transactions FOR 
 CREATE TRIGGER update_vendors_updated_at BEFORE UPDATE ON vendors FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_documents_updated_at BEFORE UPDATE ON documents FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_contract_info_updated_at BEFORE UPDATE ON contract_info FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_fsbo_checklists_updated_at BEFORE UPDATE ON fsbo_checklists FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

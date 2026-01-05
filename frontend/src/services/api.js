@@ -208,6 +208,31 @@ export const notificationsAPI = {
 };
 
 // =====================================================
+// DISCLOSURES API
+// =====================================================
+export const disclosuresAPI = {
+  // Seller Disclosure
+  getByProperty: (propertyId) => api.get(`/disclosures/property/${propertyId}`),
+  createOrGet: (propertyId) => api.post(`/disclosures/property/${propertyId}`),
+  autoSaveSection: (id, sectionNumber, data) =>
+    api.patch(`/disclosures/${id}/section/${sectionNumber}`, { data }),
+  update: (id, data) => api.put(`/disclosures/${id}`, data),
+  complete: (id) => api.post(`/disclosures/${id}/complete`),
+  signSeller: (id, signatureData) => api.post(`/disclosures/${id}/sign/seller`, signatureData),
+  signBuyer: (id, signatureData) => api.post(`/disclosures/${id}/sign/buyer`, signatureData),
+  getSellerDisclosures: () => api.get('/disclosures/seller'),
+
+  // FSBO Checklist
+  getFSBOChecklist: (propertyId = null) =>
+    api.get('/disclosures/fsbo-checklist', { params: propertyId ? { propertyId } : {} }),
+  createFSBOChecklist: (propertyId) => api.post(`/disclosures/fsbo-checklist/property/${propertyId}`),
+  autoSaveFSBOCategory: (id, category, data) =>
+    api.patch(`/disclosures/fsbo-checklist/${id}/category/${category}`, { data }),
+  updateFSBOChecklist: (id, data) => api.put(`/disclosures/fsbo-checklist/${id}`, data),
+  deleteFSBOChecklist: (id) => api.delete(`/disclosures/fsbo-checklist/${id}`),
+};
+
+// =====================================================
 // AUTH API (Extended)
 // =====================================================
 export const authAPI = {
