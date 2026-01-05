@@ -4,7 +4,7 @@
 # =====================================================
 # Stage 1: Development (for dev override)
 # =====================================================
-FROM node:20-alpine AS development
+FROM node:25-alpine AS development
 
 WORKDIR /app
 
@@ -20,7 +20,7 @@ CMD ["npm", "run", "dev", "--", "--host"]
 # =====================================================
 # Stage 2: Build
 # =====================================================
-FROM node:20-alpine AS builder
+FROM node:25-alpine AS builder
 
 WORKDIR /app
 
