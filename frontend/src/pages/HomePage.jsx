@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Home, Users, Briefcase, Building2, ArrowRight, Shield, Clock, DollarSign, CheckCircle } from 'lucide-react';
 
 export default function HomePage() {
@@ -221,7 +221,7 @@ export default function HomePage() {
             <div className="flex space-x-6">
               <a href="#" className="hover:text-white">About</a>
               <a href="#" className="hover:text-white">Contact</a>
-              <a href="#" className="hover:text-white">Privacy</a>
+              <Link to="/privacy" className="hover:text-white">Privacy</Link>
               <a href="#" className="hover:text-white">Terms</a>
             </div>
           </div>

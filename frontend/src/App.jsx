@@ -15,6 +15,7 @@ import ContractInfoCollector from '@/pages/ContractInfoCollector';
 import SellerDisclosure from '@/pages/SellerDisclosure';
 import FSBOChecklist from '@/pages/FSBOChecklist';
 import BuyerDisclosureView from '@/pages/BuyerDisclosureView';
+import PrivacyPolicyPage from '@/pages/PrivacyPolicyPage';
 
 // Protected Route Component
 import ProtectedRoute from '@/components/shared/ProtectedRoute';
@@ -30,6 +31,7 @@ function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
 
           {/* Protected Routes - Buyer */}
           <Route
